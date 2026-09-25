@@ -44,6 +44,7 @@ app.get('/health', (req, res) => res.json({
     gemini: Boolean(process.env.GEMINI_API_KEY),
     groqFallback: Boolean(process.env.GROQ_API_KEY)
   },
+  googleAuth: Boolean(process.env.GOOGLE_CLIENT_ID),
   modules: [
     'Identity & Trust Score (+ student starter-identity entry path)',
     'Wallet (+ crypto + gold assets)',

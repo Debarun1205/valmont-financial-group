@@ -17,52 +17,87 @@ const TIERS = [
 const TIER_META = {
   banks: {
     label: 'Bank & lending partners',
-    welcome: 'Welcome — we built Valmont so institutions can read one portable trust signal instead of reinventing risk.',
+    welcome: 'Welcome, partner. You are among people who care about fair risk — not gates. We will keep the signal portable and the language human.',
     aiFocus: 'portfolio risk, expected-loss lenses, marketplace funding workflows',
     suggestedRole: 'lender',
-    personaHint: 'bank risk analyst'
+    personaHint: 'bank risk analyst',
+    assistance: [
+      'Expected-loss view of the loan book, in plain language',
+      'Borrower risk lookup that reuses the same trust score',
+      'Funding workflows without a second scoring model'
+    ]
   },
   organizations: {
     label: 'Organizations & enterprises',
-    welcome: 'Glad you are here — workforce financial health should feel inclusive, not extractive.',
+    welcome: 'We are glad you are here. Workforce money health can feel caring — literacy, not surveillance. Everyone on the team belongs in this picture.',
     aiFocus: 'workforce rollups, employee financial literacy, org-level loan exposure',
     suggestedRole: 'enterprise',
-    personaHint: 'enterprise people-ops lead'
+    personaHint: 'enterprise people-ops lead',
+    assistance: [
+      'A workforce rollup of trust scores, never used to shame anyone',
+      'Learning plans your people can take at their own pace',
+      'Org-level loan exposure without extra paperwork'
+    ]
   },
   big_merchants: {
     label: 'Growing merchants',
-    welcome: 'Welcome — scale should not mean losing clarity on cash flow and credit lines.',
+    welcome: 'Welcome — growth should feel clearer, not colder. We will walk cash flow, credit, and timing with you, at the pace you choose.',
     aiFocus: 'business-health scoring, revenue trends, working-capital guidance',
     suggestedRole: 'individual',
-    personaHint: 'growing merchant operator'
+    personaHint: 'growing merchant operator',
+    assistance: [
+      'Business-health score from the same trust engine',
+      'Weekly revenue trend and an explainable credit-line hint',
+      'Working-capital language that stays practical'
+    ]
   },
   small_merchant: {
     label: 'Small merchants & shops',
-    welcome: 'You are welcome here — whether you run a stall, a kiosk, or a neighborhood shop.',
+    welcome: 'You are welcome here — stall, kiosk, neighborhood shop, or side table. There is no “too small.” We will keep money talk simple and kind.',
     aiFocus: 'simple cash-flow literacy, remittances, micro-credit readiness',
     suggestedRole: 'individual',
-    personaHint: 'small shop owner'
+    personaHint: 'small shop owner',
+    assistance: [
+      'Simple cash-in / cash-out literacy, no jargon',
+      'Remittance quotes before you send',
+      'Micro-credit readiness based on real activity, not paperwork theater'
+    ]
   },
   hackers: {
     label: 'Builders & security-minded explorers',
-    welcome: 'Welcome, builder — curiosity about systems is a strength here, not a red flag.',
+    welcome: 'Welcome, builder. Curiosity about systems is a gift here. We will show how the risk engine works — transparent, inspectable, never a black box.',
     aiFocus: 'transparent risk engines, on-chain attestation, model explainability',
     suggestedRole: 'individual',
-    personaHint: 'curious technologist'
+    personaHint: 'curious technologist',
+    assistance: [
+      'Explainable trust components you can inspect',
+      'On-chain attestation on Solana devnet',
+      'AI Lab: train models and run DS apps on the live ledger'
+    ]
   },
   career_professionals: {
     label: 'Career professionals',
-    welcome: 'Welcome — your time is limited, so guidance stays practical and respectful of your goals.',
+    welcome: 'Welcome. Your time is already full — so guidance stays short, practical, and respectful of the life you are building.',
     aiFocus: 'goal-based investing, budgeting nudges, insurance lenses',
     suggestedRole: 'individual',
-    personaHint: 'salaried professional'
+    personaHint: 'salaried professional',
+    assistance: [
+      'Goal-based allocations you can actually finish reading',
+      'A monthly nudge that never scolds',
+      'Insurance and protection priced from the same score'
+    ]
   },
   students: {
     label: 'Students & early earners',
-    welcome: 'You belong here — starting with little formal history is exactly why we built a starter identity path.',
+    welcome: 'You belong here. Little formal history is not a flaw — it is exactly why we built a starter path. We will go slowly, and we will celebrate small wins.',
     aiFocus: 'financial literacy, starter trust scores, gentle savings habits',
     suggestedRole: 'individual',
-    personaHint: 'student'
+    personaHint: 'student',
+    assistance: [
+      'Starter identity when pay stubs are still rare',
+      'Tutorials paced to the minutes you actually have',
+      'Gentle savings habits — five minutes still counts'
+    ]
   }
 };
 

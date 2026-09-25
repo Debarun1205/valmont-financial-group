@@ -117,7 +117,9 @@ function demoResponse(path) {
     '/api/ds/applications': DEMO.dsApps,
     '/api/ds/runs': { runs: [] },
     '/api/auth/tiers': DEMO.authTiers,
-    '/api/auth/me': { user: { ...DEMO_USER, customerTier: 'career_professionals' }, tierMeta: DEMO.authTiers.tiers[1] },
+    '/api/auth/config': { googleClientId: '', googleEnabled: false },
+    '/api/auth/google': { user: { ...DEMO_USER, customerTier: null, needsOnboarding: true, displayName: 'Demo' }, token: 'demo-token', welcome: 'Welcome — a few gentle questions next.' },
+    '/api/auth/me': { user: { ...DEMO_USER, customerTier: 'career_professionals', displayName: 'Demo' }, tierMeta: DEMO.authTiers.tiers[1] },
   };
   if (exact[normalized]) return exact[normalized];
   if (normalized === '/api/wallet/transfer') return { ok: true, amount: 10, recipientEmail: 'other-user@example.com', note: null };
@@ -180,25 +182,69 @@ function Stat({ label, value, sub, tone = '' }) { return <div className="stat"><
 function StatusPill({ children, tone = 'positive' }) { return <span className={`status-pill ${tone}`}><span className="status-dot" />{children}</span>; }
 function TrendList({ items, valueKey }) { return <div className="trend-list">{(items || []).map((x, i) => <div className="trend-row" key={`${x.week || x.createdAt || i}`}><span>{x.week || new Date(x.createdAt || Date.now()).toLocaleDateString()}</span><div className="trend-bar"><i style={{ width: `${Math.min(100, Math.max(8, Number(x[valueKey] || 0) / Math.max(1, Math.max(...(items || []).map(y => Number(y[valueKey] || 0))) ) * 100))}%` }} /></div><strong>{money(x[valueKey])}</strong></div>)}</div>; }
 
+function initialView() {
+  if (DEMO_MODE) return 'app';
+  const t = localStorage.getItem('valmont_token');
+  const u = JSON.parse(localStorage.getItem('valmont_user') || 'null');
+  if (t && u?.customerTier) return 'app';
+  if (t && u) return 'onboard';
+  return 'landing';
+}
+
+function persistSession(token, user, extra = {}) {
+  if (token) localStorage.setItem('valmont_token', token);
+  if (user) localStorage.setItem('valmont_user', JSON.stringify(user));
+  if (extra.tierMeta) localStorage.setItem('valmont_tier', JSON.stringify(extra.tierMeta));
+}
+
 function App() {
   const [page, setPage] = useState('overview');
+  const [view, setView] = useState(initialView);
   const [token, setToken] = useState(DEMO_MODE ? 'demo-token' : (localStorage.getItem('valmont_token') || ''));
-  const [user, setUser] = useState(DEMO_MODE ? DEMO_USER : JSON.parse(localStorage.getItem('valmont_user') || 'null'));
+  const [user, setUser] = useState(DEMO_MODE ? { ...DEMO_USER, customerTier: 'career_professionals', displayName: 'Demo' } : JSON.parse(localStorage.getItem('valmont_user') || 'null'));
+  const [tierMeta, setTierMeta] = useState(() => JSON.parse(localStorage.getItem('valmont_tier') || 'null'));
   const [toast, setToast] = useState('');
   const [apiOnline, setApiOnline] = useState(null);
   useEffect(() => { if (DEMO_MODE) { setApiOnline(true); return; } fetch(`${API}/health`).then(r => r.ok ? r.json() : Promise.reject()).then(() => setApiOnline(true)).catch(() => setApiOnline(false)); }, []);
   useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(''), 3200); return () => clearTimeout(id); }, [toast]);
-  const logout = () => { localStorage.removeItem('valmont_token'); localStorage.removeItem('valmont_user'); setToken(''); setUser(null); setPage('overview'); setToast('Signed out'); };
+  const logout = () => {
+    localStorage.removeItem('valmont_token');
+    localStorage.removeItem('valmont_user');
+    localStorage.removeItem('valmont_tier');
+    setToken(''); setUser(null); setTierMeta(null); setPage('overview'); setView('landing'); setToast('Signed out — come back anytime.');
+  };
   const onAuth = data => {
     if (!data?.token) return;
+    const nextUser = data.user || null;
+    const nextMeta = data.tierMeta || data.classification || null;
     setToken(data.token);
-    setUser(data.user || null);
-    localStorage.setItem('valmont_token', data.token);
-    localStorage.setItem('valmont_user', JSON.stringify(data.user || null));
+    setUser(nextUser);
+    if (nextMeta) setTierMeta(nextMeta);
+    persistSession(data.token, nextUser, { tierMeta: nextMeta });
     const welcome = data.classification?.welcome || data.welcome;
-    setToast(welcome || 'Identity connected');
+    setToast(welcome || 'Welcome in.');
+    if (nextUser?.customerTier) setView('app');
+    else setView('onboard');
   };
-  return <div className="app-shell"><Sidebar page={page} setPage={setPage} user={user} /><main className="main-shell"><Topbar user={user} apiOnline={apiOnline} onLogout={logout} /><div className="content-wrap">{!token && <AuthBanner onAuth={onAuth} setToast={setToast} />}{token ? <PageRouter page={page} token={token} user={user} setPage={setPage} setToast={setToast} /> : <Landing setPage={setPage} />}</div></main>{toast && <div className="toast"><span className="status-dot positive" />{toast}</div>}</div>;
+  const onOnboarded = data => {
+    onAuth(data);
+    setView('app');
+    setPage('overview');
+  };
+
+  if (view !== 'app') {
+    return (
+      <div className="public-shell">
+        <PublicNav view={view} onHome={() => setView('landing')} onAuth={() => setView('auth')} apiOnline={apiOnline} />
+        {view === 'landing' && <Landing onStart={() => setView('auth')} />}
+        {view === 'auth' && <AuthPage onAuth={onAuth} setToast={setToast} onBack={() => setView('landing')} />}
+        {view === 'onboard' && <OnboardingQuiz token={token} user={user} onDone={onOnboarded} setToast={setToast} />}
+        {toast && <div className="toast"><span className="status-dot positive" />{toast}</div>}
+      </div>
+    );
+  }
+
+  return <div className="app-shell"><Sidebar page={page} setPage={setPage} user={user} /><main className="main-shell"><Topbar user={user} apiOnline={apiOnline} onLogout={logout} /><div className="content-wrap"><PageRouter page={page} token={token} user={user} tierMeta={tierMeta} setPage={setPage} setToast={setToast} /></div></main>{toast && <div className="toast"><span className="status-dot positive" />{toast}</div>}</div>;
 }
 
 function Sidebar({ page, setPage, user }) {
