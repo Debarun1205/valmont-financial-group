@@ -185,6 +185,12 @@ function TrendList({ items, valueKey }) { return <div className="trend-list">{(i
 function initialView() {
   if (DEMO_MODE) return 'app';
   const t = localStorage.getItem('valmont_token');
+  if (t === 'demo-token') {
+    localStorage.removeItem('valmont_token');
+    localStorage.removeItem('valmont_user');
+    localStorage.removeItem('valmont_tier');
+    return 'landing';
+  }
   const u = JSON.parse(localStorage.getItem('valmont_user') || 'null');
   if (t && u?.customerTier) return 'app';
   if (t && u) return 'onboard';
@@ -200,8 +206,10 @@ function persistSession(token, user, extra = {}) {
 function App() {
   const [page, setPage] = useState('overview');
   const [view, setView] = useState(initialView);
-  const [token, setToken] = useState(DEMO_MODE ? 'demo-token' : (localStorage.getItem('valmont_token') || ''));
-  const [user, setUser] = useState(DEMO_MODE ? { ...DEMO_USER, customerTier: 'career_professionals', displayName: 'Demo' } : JSON.parse(localStorage.getItem('valmont_user') || 'null'));
+  const _initToken = localStorage.getItem('valmont_token') === 'demo-token' ? '' : (localStorage.getItem('valmont_token') || '');
+  const _initUser = localStorage.getItem('valmont_token') === 'demo-token' ? null : JSON.parse(localStorage.getItem('valmont_user') || 'null');
+  const [token, setToken] = useState(DEMO_MODE ? 'demo-token' : _initToken);
+  const [user, setUser] = useState(DEMO_MODE ? { ...DEMO_USER, customerTier: 'career_professionals', displayName: 'Demo' } : _initUser);
   const [tierMeta, setTierMeta] = useState(() => JSON.parse(localStorage.getItem('valmont_tier') || 'null'));
   const [toast, setToast] = useState('');
   const [apiOnline, setApiOnline] = useState(null);
