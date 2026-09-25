@@ -353,7 +353,7 @@ function AuthPage({ onAuth, setToast, onBack }) {
 function OnboardingQuiz({ token, user, onDone, setToast }) {
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [quiz, setQuiz] = useState({ displayName: '', monthlyIncome: 2000, dailyLearningMinutes: 30, investmentCapital: 500, background: 'career professional' });
+  const [quiz, setQuiz] = useState({ displayName: '', monthlyIncome: '', dailyLearningMinutes: '', investmentCapital: '', background: '' });
   const [classification, setClassification] = useState(null);
 
   const submitQuiz = async () => {
@@ -363,11 +363,11 @@ function OnboardingQuiz({ token, user, onDone, setToast }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          displayName: quiz.displayName,
-          monthlyIncome: Number(quiz.monthlyIncome),
-          dailyLearningMinutes: Number(quiz.dailyLearningMinutes),
-          investmentCapital: Number(quiz.investmentCapital),
-          background: quiz.background
+          displayName: quiz.displayName || 'Friend',
+          monthlyIncome: Number(quiz.monthlyIncome) || 0,
+          dailyLearningMinutes: Number(quiz.dailyLearningMinutes) || 15,
+          investmentCapital: Number(quiz.investmentCapital) || 0,
+          background: quiz.background || 'other'
         })
       });
       const data = await res.json();
@@ -378,40 +378,74 @@ function OnboardingQuiz({ token, user, onDone, setToast }) {
   };
 
   const quizSteps = [
-    { title: 'First, what should we call you?', body: 'No pressure — a first name, nickname, or just “friend” is perfect.', fields: [['displayName', 'Preferred name', 'text', 'Alex']] },
-    { title: 'About how much do you earn each month?', body: 'Any number is welcome. We use this only to personalize guidance — never to gatekeep.', fields: [['monthlyIncome', 'Monthly income (USD)', 'number', 2000]] },
-    { title: 'How much time can you spend learning?', body: 'Five quiet minutes still counts. We will pace tutorials around your real life.', fields: [['dailyLearningMinutes', 'Minutes per day', 'number', 30]] },
-    { title: 'What capital could you invest if you chose to?', body: 'Zero is a valid and respected answer. Growth can start with understanding.', fields: [['investmentCapital', 'Investment capital (USD)', 'number', 500]] },
-    { title: 'What best describes your background?', body: 'Banks, shops, students, builders — every path belongs here.', fields: [['background', 'Background', 'select', 'career professional']] }
+    { title: 'Before we dive in, help us comprehend you better', body: 'What should we call you?', fields: [['displayName', 'Preferred name', 'text', 'Alex']] },
+    { title: 'Financial context', body: 'About how much do you earn each month? (USD)', fields: [['monthlyIncome', 'Monthly income', 'number', 2000]] },
+    { title: 'Time commitment', body: 'How much time can you spend learning? (Minutes/day)', fields: [['dailyLearningMinutes', 'Minutes per day', 'number', 30]] },
+    { title: 'Investment capacity', body: 'What capital could you invest if you chose to? (USD)', fields: [['investmentCapital', 'Investment capital', 'number', 500]] },
+    { title: 'Decoding purchasing preferences', body: 'What best describes your background?', fields: [['background', 'Background', 'select', '']] }
   ];
   const current = quizSteps[step];
-  const backgrounds = ['student', 'career professional', 'small merchant', 'big merchant', 'bank', 'organization / enterprise', 'hacker / builder / tech', 'other'];
+  const backgrounds = ['Student', 'Career professional', 'Small merchant', 'Big merchant', 'Bank', 'Organization / enterprise', 'Hacker / builder / tech', 'Other'];
+
+  const progress = ((step + 1) / quizSteps.length) * 100;
 
   return (
-    <section className="auth-strip onboarding-strip">
-      <div>
-        <span className="eyebrow">WARM ONBOARDING · STEP {step + 1} OF {quizSteps.length}</span>
-        <h2>{current.title}</h2>
-        <p>{current.body}</p>
-        {classification && <StatusPill>{classification.label || classification.customerTier}</StatusPill>}
-      </div>
-      <div className="auth-form onboarding-form">
-        {current.fields.map(([key, label, type]) => (
-          <label className="field" key={key} style={{ gridColumn: '1 / -1' }}>
-            <span>{label}</span>
-            {type === 'select'
-              ? <select value={quiz[key]} onChange={e => setQuiz(q => ({ ...q, [key]: e.target.value }))}>{backgrounds.map(b => <option key={b} value={b}>{b}</option>)}</select>
-              : <input type={type} value={quiz[key]} onChange={e => setQuiz(q => ({ ...q, [key]: e.target.value }))} />}
-          </label>
-        ))}
-        <div className="button-row" style={{ gridColumn: '1 / -1' }}>
-          {step > 0 && <button type="button" className="secondary-btn" onClick={() => setStep(s => s - 1)}>Back</button>}
-          {step < quizSteps.length - 1
-            ? <button type="button" className="primary-btn" onClick={() => setStep(s => s + 1)}>Continue</button>
-            : <button type="button" className="primary-btn" onClick={submitQuiz} disabled={busy}>{busy ? 'Saving...' : 'Finish setup'}</button>}
+    <div className="quiz-container">
+      <div className="quiz-wrapper">
+        <h1 className="quiz-title">{current.title}</h1>
+        
+        <div className="quiz-progress-track">
+          <div className="quiz-progress-fill" style={{ width: `${progress}%` }}></div>
+        </div>
+        
+        <p className="quiz-subtitle">{current.body}</p>
+        
+        <div className="quiz-form">
+          {current.fields.map(([key, label, type, placeholder]) => (
+            <div key={key} className="quiz-field-group">
+              {type === 'select' ? (
+                <div className="quiz-options">
+                  {backgrounds.map(b => (
+                    <label key={b} className={`quiz-option ${quiz[key] === b.toLowerCase() ? 'selected' : ''}`}>
+                      <input 
+                        type="radio" 
+                        name={key} 
+                        value={b.toLowerCase()} 
+                        checked={quiz[key] === b.toLowerCase()} 
+                        onChange={e => setQuiz(q => ({ ...q, [key]: e.target.value }))} 
+                      />
+                      <span className="quiz-radio-circle"></span>
+                      {b}
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <input 
+                  type={type} 
+                  className="quiz-input" 
+                  placeholder={placeholder} 
+                  value={quiz[key]} 
+                  onChange={e => setQuiz(q => ({ ...q, [key]: e.target.value }))} 
+                  autoFocus 
+                />
+              )}
+            </div>
+          ))}
+        </div>
+        
+        <div className="quiz-footer">
+          {step > 0 ? (
+            <button type="button" className="quiz-btn-secondary" onClick={() => setStep(s => s - 1)}>Back</button>
+          ) : <div></div>}
+          
+          {step < quizSteps.length - 1 ? (
+            <button type="button" className="quiz-btn-primary" onClick={() => setStep(s => s + 1)}>Next</button>
+          ) : (
+            <button type="button" className="quiz-btn-primary" onClick={submitQuiz} disabled={busy}>{busy ? 'Saving...' : 'Finish setup'}</button>
+          )}
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
