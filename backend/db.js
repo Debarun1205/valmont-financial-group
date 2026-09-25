@@ -1,80 +1,55 @@
-const { Pool } = require('pg');
-const fs = require('fs');
-const path = require('path');
+const { MongoClient } = require('mongodb');
+const { createPool } = require('./mongoCompat');
 
-const connectionString =
-  process.env.DATABASE_URL || 'postgres://postgres:devpassword@localhost:5432/financeapp';
+const mongoUri =
+  process.env.MONGODB_URI ||
+  (String(process.env.DATABASE_URL || '').startsWith('mongodb') ? process.env.DATABASE_URL : '');
 
-const needsSsl =
-  process.env.DATABASE_SSL === 'true' ||
-  /neon\.tech|sslmode=require|render\.com|amazonaws\.com/i.test(connectionString);
-
-const pool = new Pool({
-  connectionString,
-  ssl: needsSsl ? { rejectUnauthorized: false } : undefined
+let client;
+let db;
+const pool = createPool(() => {
+  if (!db) {
+    throw new Error('MongoDB is not connected. Set MONGODB_URI to your MongoDB connection string.');
+  }
+  return db;
 });
 
-let hasTimescale = false;
-
 function getHasTimescale() {
-  return hasTimescale;
+  return false;
 }
 
-/**
- * Bootstraps schema. Prefer TimescaleDB (Tiger Data) when available;
- * otherwise run on plain Postgres with date_trunc fallbacks in analytics.
- */
+function getDb() {
+  return db;
+}
+
 async function initSchema() {
-  await pool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto');
-
-  try {
-    await pool.query('CREATE EXTENSION IF NOT EXISTS timescaledb');
-    hasTimescale = true;
-    console.log('[db] TimescaleDB extension ready');
-  } catch (err) {
-    hasTimescale = false;
-    console.warn('[db] TimescaleDB not available — plain Postgres mode:', err.message);
+  if (!mongoUri) {
+    const err = new Error(
+      'Missing MongoDB URL. Set MONGODB_URI (mongodb://... or mongodb+srv://...) in backend/.env'
+    );
+    err.code = 'MONGODB_URI_MISSING';
+    throw err;
   }
 
-  let schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-  if (!hasTimescale) {
-    schema = schema
-      .replace(/CREATE EXTENSION IF NOT EXISTS timescaledb;\s*/gi, '-- timescaledb skipped\n')
-      .replace(/SELECT create_hypertable\([^;]+;\s*/gi, '-- hypertable skipped (plain Postgres)\n');
-  }
+  client = new MongoClient(mongoUri);
+  await client.connect();
+  db = client.db(process.env.MONGODB_DB || 'valmont');
 
-  await pool.query(schema);
+  await db.collection('users').createIndex({ email: 1 }, { unique: true });
+  await db.collection('users').createIndex({ id: 1 }, { unique: true });
+  await db.collection('wallets').createIndex({ user_id: 1 }, { unique: true });
+  await db.collection('transactions').createIndex({ user_id: 1, time: -1 });
+  await db.collection('trust_scores').createIndex({ user_id: 1, computed_at: -1 });
+  await db.collection('loans').createIndex({ borrower_id: 1, created_at: -1 });
+  await db.collection('loans').createIndex({ status: 1, created_at: -1 });
+  await db.collection('loan_installments').createIndex({ loan_id: 1, installment_number: 1 });
+  await db.collection('investment_advice').createIndex({ user_id: 1, created_at: -1 });
+  await db.collection('insurance_policies').createIndex({ user_id: 1, created_at: -1 });
+  await db.collection('remittances').createIndex({ user_id: 1, created_at: -1 });
+  await db.collection('ml_training_runs').createIndex({ user_id: 1, created_at: -1 });
+  await db.collection('ds_application_runs').createIndex({ user_id: 1, created_at: -1 });
 
-  // Migrations that stay idempotent for free-tier / existing DBs
-  await pool.query(`
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS customer_tier TEXT;
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding JSONB;
-
-    CREATE TABLE IF NOT EXISTS ml_training_runs (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id),
-      model_key TEXT NOT NULL,
-      epochs INT NOT NULL DEFAULT 8,
-      metrics JSONB NOT NULL,
-      feature_snapshot JSONB,
-      status TEXT NOT NULL DEFAULT 'completed',
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE INDEX IF NOT EXISTS idx_ml_training_runs_user ON ml_training_runs (user_id, created_at DESC);
-
-    CREATE TABLE IF NOT EXISTS ds_application_runs (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id),
-      application_id TEXT NOT NULL,
-      result JSONB NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE INDEX IF NOT EXISTS idx_ds_application_runs_user ON ds_application_runs (user_id, created_at DESC);
-  `);
-
-  console.log(
-    `[db] schema ensured (timescale=${hasTimescale ? 'yes' : 'no'}, users+onboarding, ml_training_runs, ds_application_runs)`
-  );
+  console.log('[db] MongoDB connected — indexes ensured');
 }
 
-module.exports = { pool, initSchema, getHasTimescale };
+module.exports = { pool, initSchema, getHasTimescale, getDb };

@@ -11,13 +11,13 @@ A universal finance app: portable trust score, multi-asset wallet, loans, AI adv
 ## Stack
 
 - **Backend:** Node.js + Express
-- **Database:** PostgreSQL (TimescaleDB / Tiger Data optional; plain Postgres works on Neon free tier)
+- **Database:** MongoDB (Atlas or local). Set `MONGODB_URI`.
 - **Auth:** Auth0-ready + local JWT bypass for demos (`DEV_AUTH_BYPASS=true`)
 - **AI:** Gemini primary → **Groq free-tier fallback** → mocks
 - **Voice:** ElevenLabs (optional narration)
 - **Chain:** Solana devnet trust-score attestation
 - **Frontend:** Vite + React
-- **Deploy (fastest free):** Vercel (UI) + Render (API) + Neon (DB)
+- **Deploy (fastest free):** Vercel (UI) + Render (API) + MongoDB Atlas
 
 ## Live links
 
@@ -30,7 +30,7 @@ A universal finance app: portable trust score, multi-asset wallet, loans, AI adv
 
 | File | Purpose |
 |------|---------|
-| [`DEPLOY.md`](./DEPLOY.md) | Full Neon → Render → Vercel walkthrough (Git Bash friendly) |
+| [`DEPLOY.md`](./DEPLOY.md) | MongoDB Atlas → Render → Vercel walkthrough |
 | [`docs/frontend-backend-sync.md`](./docs/frontend-backend-sync.md) | Endpoint coverage (61/61) |
 | [`docs/frontend-verification.md`](./docs/frontend-verification.md) | Dashboard verification |
 | [`docs/dev-context-handoff.md`](./docs/dev-context-handoff.md) | Full product/build handoff |
@@ -38,11 +38,12 @@ A universal finance app: portable trust score, multi-asset wallet, loans, AI adv
 ## Running locally
 
 ```bash
-# Optional local TimescaleDB
+# Optional local MongoDB
 docker compose up -d
 
 cd backend
 cp .env.example .env
+# set MONGODB_URI=mongodb://127.0.0.1:27017/valmont
 npm install
 npm start
 
@@ -66,7 +67,7 @@ cd frontend && npm run build
 
 ## Checkpoint log
 
-- [x] **1** — Identity & Trust Score (Gemini OCR, Timescale fraud signal, Solana attestation)
+- [x] **1** — Identity & Trust Score (Gemini OCR, MongoDB fraud signal, Solana attestation)
 - [x] **2** — Wallet (ledger balance, transfer, vault)
 - [x] **3** — Loan Marketplace (score-priced request/fund/repay)
 - [x] **4** — Investment Advisory (six-bucket allocation + goal framing)
