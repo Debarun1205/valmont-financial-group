@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import LandingPage from './LandingPage.jsx';
 import './styles.css';
 
 const API = import.meta.env.VITE_API_URL || 'https://valmont-financial-group-vsxz.onrender.com';
@@ -240,11 +241,14 @@ function App() {
     setPage('overview');
   };
 
+  if (view === 'landing') {
+    return <LandingPage onStart={() => setView('auth')} />;
+  }
+
   if (view !== 'app') {
     return (
       <div className="public-shell">
         <PublicNav view={view} onHome={() => setView('landing')} onAuth={() => setView('auth')} apiOnline={apiOnline} />
-        {view === 'landing' && <Landing onStart={() => setView('auth')} />}
         {view === 'auth' && <AuthPage onAuth={onAuth} setToast={setToast} onBack={() => setView('landing')} />}
         {view === 'onboard' && <OnboardingQuiz token={token} user={user} onDone={onOnboarded} setToast={setToast} />}
         {toast && <div className="toast"><span className="status-dot positive" />{toast}</div>}
@@ -276,15 +280,16 @@ function PublicNav({ view, onHome, onAuth, apiOnline }) {
 }
 
 function AuthPage({ onAuth, setToast, onBack }) {
-  const [mode, setMode] = useState('signin');
+  const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('demo@valmont.local');
   const [password, setPassword] = useState('password123');
   const [busy, setBusy] = useState(false);
 
-  const submit = async () => {
+  const submit = async (e) => {
+    e.preventDefault();
     setBusy(true);
     try {
-      const endpoint = mode === 'signin' ? '/api/auth/login' : '/api/auth/signup';
+      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
       const res = await fetch(`${API}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Authentication failed');
@@ -293,22 +298,52 @@ function AuthPage({ onAuth, setToast, onBack }) {
   };
 
   return (
-    <div className="auth-strip">
-      <div>
-        <span className="eyebrow">{mode === 'signin' ? 'WELCOME BACK' : 'CREATE ACCOUNT'}</span>
-        <h2>{mode === 'signin' ? 'Your workspace is waiting.' : 'Join Valmont.'}</h2>
-        <p>Sign in to reopen every lens on the same trust engine — wallet, lending, learning, and AI assistance tailored to you.</p>
-      </div>
-      <div className="auth-form">
-        <div className="segmented">
-          <button type="button" className={mode === 'signin' ? 'selected' : ''} onClick={() => setMode('signin')}>Sign in</button>
-          <button type="button" className={mode === 'signup' ? 'selected' : ''} onClick={() => setMode('signup')}>Create</button>
+    <div className="auth-page-container">
+      <div className="wrapper">
+        <div className="title-text" style={{ marginLeft: mode === 'signup' ? '-100%' : '0%' }}>
+          <div className="title login">Login Form</div>
+          <div className="title signup">Signup Form</div>
         </div>
-        <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" />
-        <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" />
-        <div className="button-row" style={{ gridColumn: '1 / -1' }}>
-          <button type="button" className="secondary-btn" onClick={onBack}>Cancel</button>
-          <button type="button" className="primary-btn" onClick={submit} disabled={busy}>{busy ? 'Connecting…' : (mode === 'signin' ? 'Enter workspace' : 'Create account')}</button>
+        <div className="form-container">
+          <div className="slide-controls">
+            <input type="radio" name="slide" id="login" checked={mode === 'login'} onChange={() => setMode('login')} />
+            <input type="radio" name="slide" id="signup" checked={mode === 'signup'} onChange={() => setMode('signup')} />
+            <label htmlFor="login" className="slide login" onClick={() => setMode('login')}>Login</label>
+            <label htmlFor="signup" className="slide signup" onClick={() => setMode('signup')}>Signup</label>
+            <div className="slider-tab"></div>
+          </div>
+          <div className="form-inner" style={{ marginLeft: mode === 'signup' ? '-100%' : '0%' }}>
+            <form className="login" onSubmit={submit}>
+              <div className="field">
+                <input type="text" placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} required />
+              </div>
+              <div className="field">
+                <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
+              </div>
+              <div className="pass-link"><a href="#" onClick={e => { e.preventDefault(); onBack(); }}>Cancel & go back</a></div>
+              <div className="field btn">
+                <div className="btn-layer"></div>
+                <input type="submit" value={busy ? 'Connecting...' : 'Login'} disabled={busy} />
+              </div>
+              <div className="signup-link">Not a member? <a href="#" onClick={e => { e.preventDefault(); setMode('signup'); }}>Signup now</a></div>
+            </form>
+            <form className="signup" onSubmit={submit}>
+              <div className="field">
+                <input type="text" placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} required />
+              </div>
+              <div className="field">
+                <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
+              </div>
+              <div className="field">
+                <input type="password" placeholder="Confirm password" required />
+              </div>
+              <div className="field btn">
+                <div className="btn-layer"></div>
+                <input type="submit" value={busy ? 'Creating...' : 'Signup'} disabled={busy} />
+              </div>
+              <div className="signup-link">Already a member? <a href="#" onClick={e => { e.preventDefault(); setMode('login'); }}>Login</a></div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -379,7 +414,7 @@ function OnboardingQuiz({ token, user, onDone, setToast }) {
     </section>
   );
 }
-function Landing({ onStart }) { return <div className="landing"><div className="hero-grid"><div className="hero-copy"><span className="eyebrow">UNIVERSAL FINANCE PLATFORM · CHECKPOINT 15</span><h1>One identity.<br /><em>Many financial lenses.</em></h1><p>Portable trust, a multi-asset wallet, lending, investing, protection and business intelligence — designed around one explainable risk engine.</p><div className="hero-actions"><button type="button" className="primary-btn" onClick={onStart}>Connect identity</button></div></div><div className="hero-score"><div className="score-ring"><div><strong>78</strong><span>TRUST</span></div></div><div className="score-caption"><span className="status-dot positive" /> Score is the common signal</div></div></div><div className="feature-line">{['Income verified', 'Timescale signals', 'Solana attestation', 'AI advisory', 'Multi-asset wallet', 'Lender lens'].map(x => <span key={x}>{x}</span>)}</div></div>; }
+
 
 function PageRouter(props) { const map = { overview: Overview, identity: Identity, wallet: Wallet, invest: Invest, insurance: Insurance, remit: Remit, learn: Learn, budget: Budget, loans: Loans, lender: Lender, merchant: Merchant, enterprise: Enterprise, ml: ModelTraining, ds: DsApplications }; const C = map[props.page] || Overview; return <C {...props} />; }
 
