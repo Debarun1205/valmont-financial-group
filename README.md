@@ -19,11 +19,12 @@ A universal finance app: portable trust score, multi-asset wallet, loans, AI adv
 - **Frontend:** Vite + React
 - **Deploy (fastest free):** Vercel (UI) + Render (API) + Neon (DB)
 
-## Live link (after deploy)
+## Live links
 
-1. Follow [`DEPLOY.md`](./DEPLOY.md) end-to-end  
-2. Judges open your **Vercel** URL  
-3. API health: `https://YOUR-API.onrender.com/health`
+- **Frontend (Live Demo):** https://frontend-one-phi-22.vercel.app
+- **API Health:** `https://YOUR-API.onrender.com/health`
+
+*(See [`DEPLOY.md`](./DEPLOY.md) for backend deployment instructions).*
 
 ## Documentation
 

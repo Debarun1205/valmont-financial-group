@@ -4,7 +4,7 @@ Status: **not deployed yet from this machine** (needs your Neon/Render/Vercel or
 
 | Item | URL |
 |------|-----|
-| Frontend (judges) | _pending — Antigravity / you fill after Vercel or Vultr_ |
+| Frontend (judges) | https://frontend-one-phi-22.vercel.app |
 | API health | _pending — `https://…/health`_ |
 | GitHub | https://github.com/Debarun1205/valmont-financial-group |
 
