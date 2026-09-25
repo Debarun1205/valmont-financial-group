@@ -7,10 +7,11 @@
 
 /* Auth UI Scoped Styles */
 .auth-page-container {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 40px;
-  min-height: 500px;
+  min-height: calc(100vh - 58px);
 }
 .auth-page-container .wrapper{
   overflow: hidden;
