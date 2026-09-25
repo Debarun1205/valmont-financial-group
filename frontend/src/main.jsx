@@ -260,54 +260,87 @@ function Sidebar({ page, setPage, user }) {
   return <aside className="sidebar"><div className="brand" onClick={() => setPage('overview')} role="button" tabIndex="0"><div className="brand-mark">V</div><div><strong>VALMONT</strong><small>FINANCIAL GROUP</small></div></div><div className="rail-label">YOUR FINANCE OS</div><nav>{visible.map(section => <div className="nav-section" key={section.group}><div className="nav-group">{section.group}</div>{section.items.map(([id, label, icon]) => <button type="button" key={id} className={`nav-item ${page === id ? 'active' : ''}`} onClick={() => setPage(id)}><span className="nav-icon">{icon}</span><span>{label}</span></button>)}</div>)}</nav><div className="sidebar-bottom"><div className="engine-chip"><span className="status-dot positive" /><div><strong>Risk engine</strong><small>One engine · many lenses</small></div></div><div className="profile-mini"><div className="avatar">{user?.email?.slice(0, 1).toUpperCase() || 'V'}</div><div className="truncate"><strong>{user?.email || 'Demo workspace'}</strong><small>{user?.customerTier || user?.role || 'individual'}</small></div></div></div></aside>;
 }
 function Topbar({ user, apiOnline, onLogout }) { return <header className="topbar"><div className="crumb">VALMONT <span>/</span> {user ? `${String(user.customerTier || user.role || 'individual').replace(/_/g, ' ').toUpperCase()} WORKSPACE` : 'PREVIEW'}</div><div className="top-actions"><div className="system-state"><span className={`status-dot ${apiOnline ? 'positive' : apiOnline === false ? 'risk' : 'pending'}`} />{DEMO_MODE ? 'Demo systems' : apiOnline ? 'Systems online' : apiOnline === false ? 'API offline' : 'Checking systems'}</div>{DEMO_MODE && <span className="demo-chip">MOCK DATA</span>}{user && <button type="button" className="ghost-btn" onClick={onLogout}>Sign out</button>}</div></header>; }
-function AuthBanner({ onAuth, setToast }) {
-  if (DEMO_MODE) return <section className="auth-strip demo-auth"><div><span className="eyebrow">DEMO WORKSPACE</span><h2>Previewing the full dashboard with contract-matched mock data.</h2><p>Every dashboard mirrors the current Express route contract. Disable demo mode to use the real backend.</p></div><div className="auth-demo-actions"><StatusPill>Offline-safe demo</StatusPill></div></section>;
+function PublicNav({ view, onHome, onAuth, apiOnline }) {
+  return (
+    <header className="topbar public-topbar">
+      <div className="brand" onClick={onHome} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="brand-mark" style={{ width: 24, height: 24, background: 'var(--teal)', color: '#000', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>V</div>
+        <strong style={{ letterSpacing: '0.1em' }}>VALMONT</strong>
+      </div>
+      <div className="top-actions">
+        <div className="system-state"><span className={`status-dot ${apiOnline ? 'positive' : 'risk'}`} />{apiOnline ? 'Systems online' : 'Checking systems'}</div>
+        {view !== 'auth' && <button type="button" className="ghost-btn" onClick={onAuth}>Sign in</button>}
+      </div>
+    </header>
+  );
+}
+
+function AuthPage({ onAuth, setToast, onBack }) {
   const [mode, setMode] = useState('signin');
-  const [step, setStep] = useState(0);
   const [email, setEmail] = useState('demo@valmont.local');
   const [password, setPassword] = useState('password123');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const endpoint = mode === 'signin' ? '/api/auth/login' : '/api/auth/signup';
+      const res = await fetch(`${API}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Authentication failed');
+      onAuth(data);
+    } catch (e) { setToast(e.message); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="auth-strip">
+      <div>
+        <span className="eyebrow">{mode === 'signin' ? 'WELCOME BACK' : 'CREATE ACCOUNT'}</span>
+        <h2>{mode === 'signin' ? 'Your workspace is waiting.' : 'Join Valmont.'}</h2>
+        <p>Sign in to reopen every lens on the same trust engine — wallet, lending, learning, and AI assistance tailored to you.</p>
+      </div>
+      <div className="auth-form">
+        <div className="segmented">
+          <button type="button" className={mode === 'signin' ? 'selected' : ''} onClick={() => setMode('signin')}>Sign in</button>
+          <button type="button" className={mode === 'signup' ? 'selected' : ''} onClick={() => setMode('signup')}>Create</button>
+        </div>
+        <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" />
+        <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" />
+        <div className="button-row" style={{ gridColumn: '1 / -1' }}>
+          <button type="button" className="secondary-btn" onClick={onBack}>Cancel</button>
+          <button type="button" className="primary-btn" onClick={submit} disabled={busy}>{busy ? 'Connecting…' : (mode === 'signin' ? 'Enter workspace' : 'Create account')}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OnboardingQuiz({ token, user, onDone, setToast }) {
+  const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [quiz, setQuiz] = useState({ displayName: '', monthlyIncome: 2000, dailyLearningMinutes: 30, investmentCapital: 500, background: 'career professional' });
   const [classification, setClassification] = useState(null);
 
-  const submitSignIn = async () => {
+  const submitQuiz = async () => {
     setBusy(true);
     try {
-      const res = await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Authentication failed');
-      onAuth(data);
-    } catch (e) { setToast(e.message); } finally { setBusy(false); }
-  };
-
-  const submitSignup = async () => {
-    setBusy(true);
-    try {
-      const res = await fetch(`${API}/api/auth/signup`, {
+      const res = await fetch(`${API}/api/auth/onboarding`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          email,
-          password,
-          onboarding: {
-            displayName: quiz.displayName,
-            monthlyIncome: Number(quiz.monthlyIncome),
-            dailyLearningMinutes: Number(quiz.dailyLearningMinutes),
-            investmentCapital: Number(quiz.investmentCapital),
-            background: quiz.background
-          }
+          displayName: quiz.displayName,
+          monthlyIncome: Number(quiz.monthlyIncome),
+          dailyLearningMinutes: Number(quiz.dailyLearningMinutes),
+          investmentCapital: Number(quiz.investmentCapital),
+          background: quiz.background
         })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Authentication failed');
+      if (!res.ok) throw new Error(data.error || 'Onboarding failed');
       setClassification(data.classification || null);
-      onAuth(data);
+      onDone(data);
     } catch (e) { setToast(e.message); } finally { setBusy(false); }
   };
-
-  if (mode === 'signin') {
-    return <section className="auth-strip"><div><span className="eyebrow">WELCOME BACK</span><h2>Your workspace is waiting.</h2><p>Sign in to reopen every lens on the same trust engine — wallet, lending, learning, and AI assistance tailored to you.</p></div><div className="auth-form"><div className="segmented"><button type="button" className="selected" onClick={() => setMode('signin')}>Sign in</button><button type="button" onClick={() => { setMode('signup'); setStep(0); }}>Create</button></div><input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" /><input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" /><button type="button" className="primary-btn" onClick={submitSignIn} disabled={busy}>{busy ? 'Connecting…' : 'Enter workspace'}</button></div></section>;
-  }
 
   const quizSteps = [
     { title: 'First, what should we call you?', body: 'No pressure — a first name, nickname, or just “friend” is perfect.', fields: [['displayName', 'Preferred name', 'text', 'Alex']] },
@@ -328,8 +361,6 @@ function AuthBanner({ onAuth, setToast }) {
         {classification && <StatusPill>{classification.label || classification.customerTier}</StatusPill>}
       </div>
       <div className="auth-form onboarding-form">
-        <div className="segmented"><button type="button" onClick={() => setMode('signin')}>Sign in</button><button type="button" className="selected" onClick={() => setMode('signup')}>Create</button></div>
-        {step === 0 && <><input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" /><input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" /></>}
         {current.fields.map(([key, label, type]) => (
           <label className="field" key={key} style={{ gridColumn: '1 / -1' }}>
             <span>{label}</span>
@@ -342,13 +373,13 @@ function AuthBanner({ onAuth, setToast }) {
           {step > 0 && <button type="button" className="secondary-btn" onClick={() => setStep(s => s - 1)}>Back</button>}
           {step < quizSteps.length - 1
             ? <button type="button" className="primary-btn" onClick={() => setStep(s => s + 1)}>Continue</button>
-            : <button type="button" className="primary-btn" onClick={submitSignup} disabled={busy}>{busy ? 'Welcoming you…' : 'Join Valmont'}</button>}
+            : <button type="button" className="primary-btn" onClick={submitQuiz} disabled={busy}>{busy ? 'Saving...' : 'Finish setup'}</button>}
         </div>
       </div>
     </section>
   );
 }
-function Landing({ setPage }) { return <div className="landing"><div className="hero-grid"><div className="hero-copy"><span className="eyebrow">UNIVERSAL FINANCE PLATFORM · CHECKPOINT 15</span><h1>One identity.<br /><em>Many financial lenses.</em></h1><p>Portable trust, a multi-asset wallet, lending, investing, protection and business intelligence — designed around one explainable risk engine.</p><div className="hero-actions"><button type="button" className="primary-btn" onClick={() => document.querySelector('.auth-strip')?.scrollIntoView({ behavior: 'smooth' })}>Connect identity</button><button type="button" className="secondary-btn" onClick={() => setPage('overview')}>Explore product</button></div></div><div className="hero-score"><div className="score-ring"><div><strong>78</strong><span>TRUST</span></div></div><div className="score-caption"><span className="status-dot positive" /> Score is the common signal</div></div></div><div className="feature-line">{['Income verified', 'Timescale signals', 'Solana attestation', 'AI advisory', 'Multi-asset wallet', 'Lender lens'].map(x => <span key={x}>{x}</span>)}</div><div className="lens-grid">{['identity', 'wallet', 'loans', 'invest', 'insurance', 'merchant'].map(id => <button type="button" key={id} onClick={() => setPage(id)} className="lens-card"><span className={`accent ${moduleMeta[id][2]}`} /><div><span className="eyebrow">{moduleMeta[id][0]}</span><h3>{moduleMeta[id][1]}</h3></div><span className="arrow">↗</span></button>)}</div></div>; }
+function Landing({ onStart }) { return <div className="landing"><div className="hero-grid"><div className="hero-copy"><span className="eyebrow">UNIVERSAL FINANCE PLATFORM · CHECKPOINT 15</span><h1>One identity.<br /><em>Many financial lenses.</em></h1><p>Portable trust, a multi-asset wallet, lending, investing, protection and business intelligence — designed around one explainable risk engine.</p><div className="hero-actions"><button type="button" className="primary-btn" onClick={onStart}>Connect identity</button></div></div><div className="hero-score"><div className="score-ring"><div><strong>78</strong><span>TRUST</span></div></div><div className="score-caption"><span className="status-dot positive" /> Score is the common signal</div></div></div><div className="feature-line">{['Income verified', 'Timescale signals', 'Solana attestation', 'AI advisory', 'Multi-asset wallet', 'Lender lens'].map(x => <span key={x}>{x}</span>)}</div></div>; }
 
 function PageRouter(props) { const map = { overview: Overview, identity: Identity, wallet: Wallet, invest: Invest, insurance: Insurance, remit: Remit, learn: Learn, budget: Budget, loans: Loans, lender: Lender, merchant: Merchant, enterprise: Enterprise, ml: ModelTraining, ds: DsApplications }; const C = map[props.page] || Overview; return <C {...props} />; }
 
