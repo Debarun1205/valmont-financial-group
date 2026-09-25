@@ -37,6 +37,7 @@ async function initSchema() {
 
   await db.collection('users').createIndex({ email: 1 }, { unique: true });
   await db.collection('users').createIndex({ id: 1 }, { unique: true });
+  await db.collection('users').createIndex({ google_id: 1 }, { unique: true, sparse: true });
   await db.collection('wallets').createIndex({ user_id: 1 }, { unique: true });
   await db.collection('transactions').createIndex({ user_id: 1, time: -1 });
   await db.collection('trust_scores').createIndex({ user_id: 1, computed_at: -1 });

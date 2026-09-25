@@ -35,6 +35,8 @@ const dynamicPatterns = [
   '/api/loans/:loanId/repay',
   '/api/auth/signup',
   '/api/auth/login',
+  '/api/auth/google',
+  '/api/auth/config',
   '/api/auth/tiers',
   '/api/auth/me',
   '/api/auth/onboarding',
