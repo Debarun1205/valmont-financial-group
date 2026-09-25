@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
-const API = import.meta.env.VITE_API_URL || '';
-const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+const API = import.meta.env.VITE_API_URL || 'https://valmont-financial-group-vsxz.onrender.com';
+const DEMO_MODE = false;
 const DEMO_USER = { id: 'demo-user-001', email: 'demo@valmont.local', role: 'individual' };
 
 const DEMO = {
