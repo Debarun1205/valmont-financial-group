@@ -39,6 +39,7 @@ app.get('/health', (req, res) => res.json({
   ok: true,
   checkpoint: 16,
   timescale: getHasTimescale(),
+  database: 'mongodb',
   aiProviders: {
     gemini: Boolean(process.env.GEMINI_API_KEY),
     groqFallback: Boolean(process.env.GROQ_API_KEY)
@@ -87,7 +88,7 @@ async function start() {
   try {
     await initSchema();
   } catch (err) {
-    console.error('[server] schema init failed — set DATABASE_URL (Neon/Render Postgres works; Timescale optional)');
+    console.error('[server] MongoDB init failed — set MONGODB_URI to your MongoDB connection string');
     console.error(err.message);
     process.exit(1);
   }

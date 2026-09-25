@@ -2,7 +2,7 @@
 
 Repo: https://github.com/Debarun1205/valmont-financial-group
 
-**Fastest free stack for judging:** Neon (Postgres) → Render (API) → Vercel (UI)
+**Fastest free stack for judging:** MongoDB Atlas → Render (API) → Vercel (UI)
 
 Estimated time: **12–20 minutes** if accounts already exist.
 
@@ -11,7 +11,7 @@ Estimated time: **12–20 minutes** if accounts already exist.
 ## Prerequisites
 
 - GitHub account with access to this repo
-- Free accounts: [Neon](https://console.neon.tech) · [Render](https://dashboard.render.com) · [Vercel](https://vercel.com) · [Groq](https://console.groq.com) (recommended)
+- Free accounts: [MongoDB Atlas](https://cloud.mongodb.com) · [Render](https://dashboard.render.com) · [Vercel](https://vercel.com) · [Groq](https://console.groq.com) (recommended)
 
 ---
 
@@ -37,14 +37,12 @@ git push -u origin main
 
 ---
 
-## B) Database — Neon (≈2 min)
+## B) Database — MongoDB Atlas (≈2 min)
 
-1. Open https://console.neon.tech → **New Project**
-2. Name: `valmont` → Create
-3. Copy the connection string (starts with `postgresql://...`)
-4. Keep it handy as `DATABASE_URL`
-
-Neon already supports SSL — we set `DATABASE_SSL=true` on Render.
+1. Open https://cloud.mongodb.com → create a free cluster
+2. Create a database user and allow network access (`0.0.0.0/0` for a demo)
+3. Copy the connection string (`mongodb+srv://...`)
+4. Keep it handy as `MONGODB_URI` (include the database name, e.g. `/valmont`)
 
 ---
 
@@ -63,8 +61,7 @@ Neon already supports SSL — we set `DATABASE_SSL=true` on Render.
 
 | Key | Value |
 |-----|--------|
-| `DATABASE_URL` | (paste Neon URL) |
-| `DATABASE_SSL` | `true` |
+| `MONGODB_URI` | (paste Atlas / MongoDB URL) |
 | `DEV_AUTH_BYPASS` | `true` |
 | `GROQ_API_KEY` | (from https://console.groq.com) |
 | `GEMINI_API_KEY` | (optional) |
@@ -162,7 +159,7 @@ Open http://localhost:5173
 | `/health` 502 / spinning | Wait for first Render boot (can take 1–2 min on free tier) |
 | Blank dashboards | Confirm `VITE_API_URL` has no trailing slash; redeploy Vercel |
 | AI always says MOCK | Add `GROQ_API_KEY` (or `GEMINI_API_KEY`) on Render and redeploy |
-| DB connection refused | Check Neon URL; set `DATABASE_SSL=true` |
+| DB connection refused | Check `MONGODB_URI` (user, password, `/dbname`, Atlas IP allowlist) |
 
 ---
 
