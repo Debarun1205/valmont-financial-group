@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+  timescaledb:
+    image: timescale/timescaledb-ha:pg17
+    container_name: finance-app-db
+    environment:
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: financeapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/home/postgres/pgdata/data
+
+volumes:
+  timescale_data:

@@ -1,0 +1,22 @@
+{
+  "name": "finance-app-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node tests/trustScoreEngine.test.js && node tests/walletService.test.js && node tests/loanService.test.js && node tests/advisoryService.test.js && node tests/lenderAnalytics.test.js && node tests/insuranceService.test.js && node tests/walletCrypto.test.js && node tests/remittanceService.test.js && node tests/educationService.test.js && node tests/walletGold.test.js && node tests/budgetService.test.js && node tests/studentIdentityService.test.js && node tests/merchantAnalytics.test.js && node tests/enterpriseAnalytics.test.js && node tests/onboardingService.test.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.12.0",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "multer": "^2.0.0",
+    "express-oauth2-jwt-bearer": "^1.6.0",
+    "@solana/web3.js": "^1.95.2"
+  }
+}

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Valmont — Final Dashboard Simulation</title>
+  <link rel="stylesheet" href="src/styles.css" />
+  <style>
+    .sim-note{margin-top:0;margin-bottom:18px;padding:10px 12px;border:1px solid #3a463f;background:#101713;color:#8fa39a;font-size:10px}
+    .chart{display:flex;align-items:flex-end;gap:14px;height:150px;padding:12px 4px 0;border-top:1px solid #242e37}
+    .chart-col{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;align-items:center}
+    .chart-bar{width:100%;max-width:54px;background:linear-gradient(180deg,#4FD1B1,#2A6359);border-top:2px solid #7EE8A8;min-height:8px}
+    .chart-label{font-size:9px;color:#65727D}
+    .activity-table{width:100%;border-collapse:collapse;font-size:11px}
+    .activity-table th,.activity-table td{text-align:left;padding:10px 8px;border-bottom:1px solid #232d36}
+    .activity-table th{color:#697782;font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+    .activity-table td:last-child,.activity-table th:last-child{text-align:right}
+    .delta-up{color:#7EE8A8}.delta-down{color:#F2707A}.subtle{color:#73808C}
+    @media(max-width:760px){.sim-note{margin-top:0}}
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">V</div><div><strong>VALMONT</strong><small>FINANCIAL GROUP</small></div></div>
+    <div class="rail-label">YOUR FINANCE OS</div>
+    <nav>
+      <div class="nav-section"><div class="nav-group">Overview</div><button class="nav-item active" data-page="overview"><span class="nav-icon">⌂</span><span>Overview</span></button></div>
+      <div class="nav-section"><div class="nav-group">You</div>
+        <button class="nav-item" data-page="identity"><span class="nav-icon">◎</span><span>Identity & trust</span></button>
+        <button class="nav-item" data-page="wallet"><span class="nav-icon">◈</span><span>Wallet</span></button>
+        <button class="nav-item" data-page="invest"><span class="nav-icon">↗</span><span>Investments</span></button>
+        <button class="nav-item" data-page="insurance"><span class="nav-icon">◇</span><span>Insurance</span></button>
+        <button class="nav-item" data-page="remit"><span class="nav-icon">⇄</span><span>Remittances</span></button>
+        <button class="nav-item" data-page="learn"><span class="nav-icon">∿</span><span>Financial learning</span></button>
+        <button class="nav-item" data-page="budget"><span class="nav-icon">≋</span><span>Budgeting</span></button>
+      </div>
+      <div class="nav-section"><div class="nav-group">Lending</div>
+        <button class="nav-item" data-page="loans"><span class="nav-icon">₿</span><span>Loan marketplace</span></button>
+      </div>
+      <div class="nav-section"><div class="nav-group">Business</div>
+        <button class="nav-item" data-page="merchant"><span class="nav-icon">▦</span><span>Merchant health</span></button>
+      </div>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="engine-chip"><span class="status-dot positive"></span><div><strong>Risk engine</strong><small>One engine · many lenses</small></div></div>
+      <div class="profile-mini"><div class="avatar">D</div><div class="truncate"><strong>demo@valmont.local</strong><small>individual</small></div></div>
+    </div>
+  </aside>
+  <main class="main-shell">
+    <header class="topbar"><div class="crumb">VALMONT <span>/</span> PERSONAL WORKSPACE</div><div class="top-actions"><div class="system-state"><span class="status-dot positive"></span>Demo systems</div><span class="demo-chip">MOCK DATA</span></div></header>
+    <div class="content-wrap">
+      <div class="sim-note"><span class="status-dot positive"></span>Frontend environment simulation · <strong>51/51 backend route endpoints covered</strong> · contract-shaped mock data · checkpoint 15</div>
+      <div class="page-header"><div><span class="eyebrow">OVERVIEW / PERSONAL</span><h1>Good to see you, demo.</h1><p>Your financial picture, condensed into the signals that matter.</p></div><button class="secondary-btn">Refresh data</button></div>
+      <div class="overview-grid">
+        <section class="panel score-panel"><div class="panel-head"><span class="eyebrow">CORE SIGNAL</span><h3>Trust score</h3></div><div class="score-layout"><div class="big-score"><strong>78</strong><span>/ 100</span></div><div><span class="status-pill positive"><span class="status-dot positive"></span>On-chain attested</span><p class="muted">The same score can be viewed by you, a lender, an insurer or a business — each through its own lens.</p><button class="text-btn">Review evidence →</button></div></div><div class="meter"><span style="width:78%"></span></div></section>
+        <section class="panel"><div class="panel-head"><span class="eyebrow">LIQUIDITY</span><h3>Wallet</h3></div><div class="money">$8,240.50</div><div class="split-row"><span>Available</span><span>Vault 1,800</span></div><button class="text-btn">Open wallet →</button></section>
+      </div>
+      <div class="stats-row"><div class="stat"><span class="eyebrow">TRUST SIGNAL</span><strong>78</strong><small>Shared core score</small></div><div class="stat"><span class="eyebrow">WALLET ASSET</span><strong>USD</strong><small>Primary ledger</small></div><div class="stat"><span class="eyebrow">LOANS</span><strong>2</strong><small>Current requests</small></div><div class="stat"><span class="eyebrow">NETWORK</span><strong class="teal">Solana</strong><small>Devnet attestation</small></div></div>
+
+      <div class="two-col">
+        <section class="panel"><div class="panel-head"><span class="eyebrow">SPEND SIGNAL</span><h3>30-day cashflow</h3></div><div class="chart" aria-label="Weekly spend trend"><div class="chart-col"><div class="chart-bar" style="height:78%"></div><span class="chart-label">W-3</span></div><div class="chart-col"><div class="chart-bar" style="height:61%"></div><span class="chart-label">W-2</span></div><div class="chart-col"><div class="chart-bar" style="height:65%"></div><span class="chart-label">W-1</span></div><div class="chart-col"><div class="chart-bar" style="height:49%"></div><span class="chart-label">Now</span></div></div><div class="split-row"><span>Trailing spend</span><span>$2,400</span></div></section>
+        <section class="panel"><div class="panel-head"><span class="eyebrow">BUDGET</span><h3>Savings nudge</h3></div><div class="metric-callout"><strong>24.3%</strong><span>projected savings</span></div><p class="muted">You are above your 20% target. The rules engine sees you as on-track.</p><span class="status-pill positive"><span class="status-dot positive"></span>On track</span></section>
+      </div>
+
+      <section class="panel"><div class="panel-head"><span class="eyebrow">RECENT ACTIVITY</span><h3>Ledger events</h3></div><table class="activity-table"><thead><tr><th>Event</th><th>Channel</th><th>Date</th><th>Amount</th></tr></thead><tbody><tr><td>Merchant payout</td><td class="subtle">wallet</td><td class="subtle">24 Sep</td><td class="delta-up">+$520</td></tr><tr><td>SOL purchase</td><td class="subtle">crypto</td><td class="subtle">23 Sep</td><td>-$120</td></tr><tr><td>Vault deposit</td><td class="subtle">vault</td><td class="subtle">25 Sep</td><td>+$1,800</td></tr><tr><td>Transfer to recipient</td><td class="subtle">wallet</td><td class="subtle">22 Sep</td><td class="delta-down">-$75</td></tr></tbody></table></section>
+
+      <div class="section-title"><span class="eyebrow">ONE ENGINE · MANY LENSES</span><h2>Choose a view.</h2></div>
+      <div class="lens-grid dense">
+        <button class="lens-card"><span class="accent teal"></span><div><span class="eyebrow">Your identity</span><h3>Trust score + evidence</h3></div><span class="arrow">↗</span></button>
+        <button class="lens-card"><span class="accent violet"></span><div><span class="eyebrow">Borrow</span><h3>Request or fund</h3></div><span class="arrow">↗</span></button>
+        <button class="lens-card"><span class="accent gold"></span><div><span class="eyebrow">Grow</span><h3>Six-bucket allocation</h3></div><span class="arrow">↗</span></button>
+        <button class="lens-card"><span class="accent teal"></span><div><span class="eyebrow">Protect</span><h3>Score-linked cover</h3></div><span class="arrow">↗</span></button>
+        <button class="lens-card"><span class="accent gold"></span><div><span class="eyebrow">Operate</span><h3>Business health</h3></div><span class="arrow">↗</span></button>
+        <button class="lens-card"><span class="accent blue"></span><div><span class="eyebrow">Workforce</span><h3>Org-level signal</h3></div><span class="arrow">↗</span></button>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+  const buttons=[...document.querySelectorAll('[data-page]')];
+  buttons.forEach(btn=>btn.addEventListener('click',()=>{buttons.forEach(x=>x.classList.remove('active'));btn.classList.add('active');}));
+</script>
+</body>
+</html>
