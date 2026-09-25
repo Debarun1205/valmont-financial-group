@@ -145,10 +145,17 @@ function mockExtraction() {
 
 function tierPromptSuffix(tierContext) {
   if (!tierContext?.customerTier) return '';
+  const minutes = tierContext.dailyLearningMinutes;
+  const pace = Number(minutes) >= 45 ? 'deeper sessions are welcome' : Number(minutes) >= 15 ? 'keep it to a short daily bite' : 'keep answers very short — they have little spare time';
   return `
 Audience tier: ${tierContext.customerTier} (${tierContext.label || ''}).
 Persona hint: ${tierContext.personaHint || 'general user'}.
+Your job as their AI assistant: ${tierContext.aiAssistance || 'Be a warm, practical guide.'}
 Focus areas: ${tierContext.aiFocus || 'inclusive financial literacy'}.
+Monthly income (self-reported, never shame): ${tierContext.monthlyIncome ?? 'unknown'}.
+Investment capital (self-reported, zero is valid): ${tierContext.investmentCapital ?? 'unknown'}.
+Daily learning minutes: ${minutes ?? 'unknown'} — ${pace}.
+Background: ${tierContext.background || 'unspecified'}.
 Speak warmly and inclusively — never shame income level, background, or learning pace.`;
 }
 

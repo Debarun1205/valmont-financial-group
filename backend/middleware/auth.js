@@ -10,7 +10,7 @@
  */
 
 const jwt = require('jsonwebtoken');
-const DEV_SECRET = 'dev-only-secret-do-not-use-in-prod';
+const DEV_SECRET = process.env.JWT_SECRET || 'dev-only-secret-do-not-use-in-prod';
 
 function devIssueToken(userId, role) {
   return jwt.sign({ sub: userId, role }, DEV_SECRET, { expiresIn: '12h' });

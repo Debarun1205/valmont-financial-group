@@ -49,6 +49,10 @@ async function initSchema() {
   await pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS customer_tier TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding JSONB;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users (google_sub) WHERE google_sub IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS ml_training_runs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

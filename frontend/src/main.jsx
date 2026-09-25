@@ -1,10 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
 const API = import.meta.env.VITE_API_URL || '';
-const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
-const DEMO_USER = { id: 'demo-user-001', email: 'demo@valmont.local', role: 'individual' };
+// Live Vercel+Render deploys always use the real API. Offline mocks only when
+// VITE_DEMO_MODE=true AND no VITE_API_URL is set (local pitch fallback).
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true' && !API;
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+const DEMO_USER = { id: 'demo-user-001', email: 'demo@valmont.local', role: 'individual', displayName: 'Alex', customerTier: null };
 
 const DEMO = {
   health: { ok: true, checkpoint: 15, tier2Complete: true, tier3Progress: [{ name: 'retirement + REITs + goal framing', done: true }], demo: true },
@@ -60,13 +63,13 @@ const DEMO = {
   ]},
   dsRun: { ok: true, application: { id: 'trust-lenses', name: 'Multi-lens risk applications' }, result: { score: 78, expectedLossPct: 4.2, insurancePremiumMultiplier: 0.91 } },
   authTiers: { tiers: [
-    { id: 'students', label: 'Students & early earners', welcome: 'You belong here.' },
-    { id: 'career_professionals', label: 'Career professionals', welcome: 'Welcome.' },
-    { id: 'small_merchant', label: 'Small merchants & shops', welcome: 'You are welcome here.' },
-    { id: 'big_merchants', label: 'Growing merchants', welcome: 'Welcome.' },
-    { id: 'banks', label: 'Bank & lending partners', welcome: 'Welcome.' },
-    { id: 'organizations', label: 'Organizations & enterprises', welcome: 'Glad you are here.' },
-    { id: 'hackers', label: 'Builders & security-minded explorers', welcome: 'Welcome, builder.' }
+    { id: 'students', label: 'Students & early earners', welcome: 'You belong here — starting with little formal history is exactly why we built a starter identity path.', aiFocus: 'financial literacy, starter trust scores, gentle savings habits', aiAssistance: 'I will teach in small daily bites: starter trust scores, emergency funds, and savings habits that fit a student calendar.' },
+    { id: 'career_professionals', label: 'Career professionals', welcome: 'Welcome — your time is limited, so guidance stays practical and respectful of your goals.', aiFocus: 'goal-based investing, budgeting nudges, insurance lenses', aiAssistance: 'I will keep investing, budgeting, and insurance short and goal-based, so you can act in the minutes you have.' },
+    { id: 'small_merchant', label: 'Small merchants & shops', welcome: 'You are welcome here — whether you run a stall, a kiosk, or a neighborhood shop.', aiFocus: 'simple cash-flow literacy, remittances, micro-credit readiness', aiAssistance: 'I will keep cash-flow literacy, remittances, and micro-credit simple — paced to the hours you actually have.' },
+    { id: 'big_merchants', label: 'Growing merchants', welcome: 'Welcome — scale should not mean losing clarity on cash flow and credit lines.', aiFocus: 'business-health scoring, revenue trends, working-capital guidance', aiAssistance: 'I will track business-health, revenue trends, and working-capital guidance so growth stays readable, not overwhelming.' },
+    { id: 'banks', label: 'Bank & lending partners', welcome: 'Welcome — we built Valmont so institutions can read one portable trust signal instead of reinventing risk.', aiFocus: 'portfolio risk, expected-loss lenses, marketplace funding workflows', aiAssistance: 'I will help your team inspect expected-loss, fund marketplace loans, and explain the shared score to credit committees.' },
+    { id: 'organizations', label: 'Organizations & enterprises', welcome: 'Glad you are here — workforce financial health should feel inclusive, not extractive.', aiFocus: 'workforce rollups, employee financial literacy, org-level loan exposure', aiAssistance: 'I will roll up employee trust, learning, and loan exposure so people-ops can support staff without shaming anyone’s starting point.' },
+    { id: 'hackers', label: 'Builders & security-minded explorers', welcome: 'Welcome, builder — curiosity about systems is a strength here, not a red flag.', aiFocus: 'transparent risk engines, on-chain attestation, model explainability', aiAssistance: 'I will explain the risk engine, on-chain attestation, and model outputs in plain language, with the knobs you like to inspect.' }
   ]},
 };
 
@@ -117,7 +120,11 @@ function demoResponse(path) {
     '/api/ds/applications': DEMO.dsApps,
     '/api/ds/runs': { runs: [] },
     '/api/auth/tiers': DEMO.authTiers,
-    '/api/auth/me': { user: { ...DEMO_USER, customerTier: 'career_professionals' }, tierMeta: DEMO.authTiers.tiers[1] },
+    '/api/auth/config': { googleEnabled: Boolean(GOOGLE_CLIENT_ID), googleClientId: GOOGLE_CLIENT_ID || null },
+    '/api/auth/google': { token: 'demo-token', user: { ...DEMO_USER, customerTier: null }, needsOnboarding: true },
+    '/api/auth/login': { token: 'demo-token', user: { ...DEMO_USER, customerTier: null }, needsOnboarding: true },
+    '/api/auth/signup': { token: 'demo-token', user: { ...DEMO_USER, customerTier: null }, needsOnboarding: true },
+    '/api/auth/me': { user: { ...DEMO_USER, customerTier: 'career_professionals' }, needsOnboarding: false, tierMeta: DEMO.authTiers.tiers[1] },
   };
   if (exact[normalized]) return exact[normalized];
   if (normalized === '/api/wallet/transfer') return { ok: true, amount: 10, recipientEmail: 'other-user@example.com', note: null };
@@ -180,121 +187,331 @@ function Stat({ label, value, sub, tone = '' }) { return <div className="stat"><
 function StatusPill({ children, tone = 'positive' }) { return <span className={`status-pill ${tone}`}><span className="status-dot" />{children}</span>; }
 function TrendList({ items, valueKey }) { return <div className="trend-list">{(items || []).map((x, i) => <div className="trend-row" key={`${x.week || x.createdAt || i}`}><span>{x.week || new Date(x.createdAt || Date.now()).toLocaleDateString()}</span><div className="trend-bar"><i style={{ width: `${Math.min(100, Math.max(8, Number(x[valueKey] || 0) / Math.max(1, Math.max(...(items || []).map(y => Number(y[valueKey] || 0))) ) * 100))}%` }} /></div><strong>{money(x[valueKey])}</strong></div>)}</div>; }
 
+function readStoredUser() {
+  try { return JSON.parse(localStorage.getItem('valmont_user') || 'null'); } catch { return null; }
+}
+
+function attachAuthUser(data) {
+  if (!data?.user) return data?.user || null;
+  return {
+    ...data.user,
+    tierMeta: data.tierMeta || data.classification || data.user.tierMeta || null,
+    welcome: data.welcome || data.classification?.welcome || data.tierMeta?.welcome || null,
+    aiAssistance: data.classification?.aiAssistance || data.tierMeta?.aiAssistance || data.user.aiAssistance || null
+  };
+}
+
 function App() {
+  const storedUser = readStoredUser();
+  const storedToken = localStorage.getItem('valmont_token') || '';
+  const initialView = storedToken && storedUser?.customerTier ? 'app' : storedToken ? 'onboarding' : 'landing';
+  const [view, setView] = useState(initialView);
   const [page, setPage] = useState('overview');
-  const [token, setToken] = useState(DEMO_MODE ? 'demo-token' : (localStorage.getItem('valmont_token') || ''));
-  const [user, setUser] = useState(DEMO_MODE ? DEMO_USER : JSON.parse(localStorage.getItem('valmont_user') || 'null'));
+  const [token, setToken] = useState(storedToken);
+  const [user, setUser] = useState(storedUser);
+  const [classification, setClassification] = useState(storedUser?.tierMeta || null);
   const [toast, setToast] = useState('');
   const [apiOnline, setApiOnline] = useState(null);
-  useEffect(() => { if (DEMO_MODE) { setApiOnline(true); return; } fetch(`${API}/health`).then(r => r.ok ? r.json() : Promise.reject()).then(() => setApiOnline(true)).catch(() => setApiOnline(false)); }, []);
+  const [authMode, setAuthMode] = useState('signin');
+  const [googleClientId, setGoogleClientId] = useState(GOOGLE_CLIENT_ID);
+  const persist = (nextToken, nextUser) => {
+    setToken(nextToken || '');
+    setUser(nextUser || null);
+    if (nextToken) localStorage.setItem('valmont_token', nextToken); else localStorage.removeItem('valmont_token');
+    if (nextUser) localStorage.setItem('valmont_user', JSON.stringify(nextUser)); else localStorage.removeItem('valmont_user');
+  };
+  useEffect(() => {
+    if (DEMO_MODE) { setApiOnline(true); return; }
+    fetch(`${API}/health`).then(r => r.ok ? r.json() : Promise.reject()).then(() => setApiOnline(true)).catch(() => setApiOnline(false));
+    fetch(`${API}/api/auth/config`).then(r => r.ok ? r.json() : Promise.reject()).then(c => {
+      if (c.googleClientId) setGoogleClientId(c.googleClientId);
+    }).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (DEMO_MODE || !storedToken) return undefined;
+    fetch(`${API}/api/auth/me`, { headers: { Authorization: `Bearer ${storedToken}` } })
+      .then(r => r.json().then(data => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok) return;
+        const next = attachAuthUser(data);
+        persist(storedToken, next);
+        if (data.needsOnboarding || !next?.customerTier) setView('onboarding');
+        else {
+          setClassification(data.classification || data.tierMeta || next.tierMeta);
+        }
+      })
+      .catch(() => {});
+    return undefined;
+  }, []);
   useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(''), 3200); return () => clearTimeout(id); }, [toast]);
-  const logout = () => { localStorage.removeItem('valmont_token'); localStorage.removeItem('valmont_user'); setToken(''); setUser(null); setPage('overview'); setToast('Signed out'); };
+  const logout = () => { persist('', null); setClassification(null); setPage('overview'); setView('landing'); setToast('Signed out — come back anytime.'); };
   const onAuth = data => {
     if (!data?.token) return;
-    setToken(data.token);
-    setUser(data.user || null);
-    localStorage.setItem('valmont_token', data.token);
-    localStorage.setItem('valmont_user', JSON.stringify(data.user || null));
-    const welcome = data.classification?.welcome || data.welcome;
-    setToast(welcome || 'Identity connected');
+    const next = attachAuthUser(data);
+    persist(data.token, next);
+    setClassification(data.classification || data.tierMeta || null);
+    if (data.needsOnboarding || !next?.customerTier) {
+      setView('onboarding');
+      setToast('You are in. A few warm questions, then your workspace.');
+    } else {
+      setView('app');
+      setToast(data.welcome || data.classification?.welcome || 'Welcome back.');
+    }
   };
-  return <div className="app-shell"><Sidebar page={page} setPage={setPage} user={user} /><main className="main-shell"><Topbar user={user} apiOnline={apiOnline} onLogout={logout} /><div className="content-wrap">{!token && <AuthBanner onAuth={onAuth} setToast={setToast} />}{token ? <PageRouter page={page} token={token} user={user} setPage={setPage} setToast={setToast} /> : <Landing setPage={setPage} />}</div></main>{toast && <div className="toast"><span className="status-dot positive" />{toast}</div>}</div>;
+  const onOnboarded = data => {
+    const next = attachAuthUser({ ...data, user: data.user || user });
+    persist(data.token || token, next);
+    setClassification(data.classification || data.tierMeta || next.tierMeta);
+    setView('welcome');
+    setToast(data.classification?.welcome || 'Your path is ready.');
+  };
+  const goAuth = (mode) => { setAuthMode(mode); setView('auth'); };
+  if (view === 'landing') return <><PublicChrome apiOnline={apiOnline} onSignIn={() => goAuth('signin')} /><Landing onSignIn={() => goAuth('signin')} onSignUp={() => goAuth('signup')} /><Toast toast={toast} /></>;
+  if (view === 'auth') return <><PublicChrome apiOnline={apiOnline} onSignIn={() => goAuth('signin')} onHome={() => setView('landing')} /><AuthPage mode={authMode} setMode={setAuthMode} googleClientId={googleClientId} onAuth={onAuth} setToast={setToast} onBack={() => setView('landing')} /><Toast toast={toast} /></>;
+  if (view === 'onboarding') return <><PublicChrome apiOnline={apiOnline} onHome={() => setView('landing')} /><OnboardingQuiz token={token} user={user} setToast={setToast} onDone={onOnboarded} /><Toast toast={toast} /></>;
+  if (view === 'welcome') return <><PublicChrome apiOnline={apiOnline} /><WelcomeGate user={user} classification={classification} onContinue={() => { setView('app'); setPage('overview'); }} onLogout={logout} /><Toast toast={toast} /></>;
+  return <div className="app-shell"><Sidebar page={page} setPage={setPage} user={user} /><main className="main-shell"><Topbar user={user} apiOnline={apiOnline} onLogout={logout} /><div className="content-wrap"><PageRouter page={page} token={token} user={user} setPage={setPage} setToast={setToast} /></div></main><Toast toast={toast} /></div>;
+}
+function Toast({ toast }) { return toast ? <div className="toast"><span className="status-dot positive" />{toast}</div> : null; }
+function PublicChrome({ apiOnline, onSignIn, onHome }) {
+  return <header className="public-topbar"><button type="button" className="brand public-brand" onClick={onHome}><div className="brand-mark">V</div><div><strong>VALMONT</strong><small>FINANCIAL GROUP</small></div></button><div className="top-actions"><div className="system-state"><span className={`status-dot ${apiOnline ? 'positive' : apiOnline === false ? 'risk' : 'pending'}`} />{DEMO_MODE ? 'Demo systems' : apiOnline ? 'Systems online' : apiOnline === false ? 'API offline' : 'Checking systems'}</div>{onSignIn && <button type="button" className="primary-btn" onClick={onSignIn}>Sign in</button>}</div></header>;
 }
 
 function Sidebar({ page, setPage, user }) {
   const visible = NAV.map(section => ({ ...section, items: section.items.filter(([id]) => id !== 'lender' || user?.role === 'lender').filter(([id]) => id !== 'enterprise' || user?.role === 'enterprise') })).filter(s => s.items.length);
-  return <aside className="sidebar"><div className="brand" onClick={() => setPage('overview')} role="button" tabIndex="0"><div className="brand-mark">V</div><div><strong>VALMONT</strong><small>FINANCIAL GROUP</small></div></div><div className="rail-label">YOUR FINANCE OS</div><nav>{visible.map(section => <div className="nav-section" key={section.group}><div className="nav-group">{section.group}</div>{section.items.map(([id, label, icon]) => <button type="button" key={id} className={`nav-item ${page === id ? 'active' : ''}`} onClick={() => setPage(id)}><span className="nav-icon">{icon}</span><span>{label}</span></button>)}</div>)}</nav><div className="sidebar-bottom"><div className="engine-chip"><span className="status-dot positive" /><div><strong>Risk engine</strong><small>One engine · many lenses</small></div></div><div className="profile-mini"><div className="avatar">{user?.email?.slice(0, 1).toUpperCase() || 'V'}</div><div className="truncate"><strong>{user?.email || 'Demo workspace'}</strong><small>{user?.customerTier || user?.role || 'individual'}</small></div></div></div></aside>;
+  return <aside className="sidebar"><div className="brand" onClick={() => setPage('overview')} role="button" tabIndex="0"><div className="brand-mark">V</div><div><strong>VALMONT</strong><small>FINANCIAL GROUP</small></div></div><div className="rail-label">YOUR FINANCE OS</div><nav>{visible.map(section => <div className="nav-section" key={section.group}><div className="nav-group">{section.group}</div>{section.items.map(([id, label, icon]) => <button type="button" key={id} className={`nav-item ${page === id ? 'active' : ''}`} onClick={() => setPage(id)}><span className="nav-icon">{icon}</span><span>{label}</span></button>)}</div>)}</nav><div className="sidebar-bottom"><div className="engine-chip"><span className="status-dot positive" /><div><strong>Risk engine</strong><small>One engine · many lenses</small></div></div><div className="profile-mini"><div className="avatar">{(user?.displayName || user?.email || 'V').slice(0, 1).toUpperCase()}</div><div className="truncate"><strong>{user?.displayName || user?.email || 'Guest'}</strong><small>{String(user?.customerTier || user?.role || 'member').replace(/_/g, ' ')}</small></div></div></div></aside>;
 }
 function Topbar({ user, apiOnline, onLogout }) { return <header className="topbar"><div className="crumb">VALMONT <span>/</span> {user ? `${String(user.customerTier || user.role || 'individual').replace(/_/g, ' ').toUpperCase()} WORKSPACE` : 'PREVIEW'}</div><div className="top-actions"><div className="system-state"><span className={`status-dot ${apiOnline ? 'positive' : apiOnline === false ? 'risk' : 'pending'}`} />{DEMO_MODE ? 'Demo systems' : apiOnline ? 'Systems online' : apiOnline === false ? 'API offline' : 'Checking systems'}</div>{DEMO_MODE && <span className="demo-chip">MOCK DATA</span>}{user && <button type="button" className="ghost-btn" onClick={onLogout}>Sign out</button>}</div></header>; }
-function AuthBanner({ onAuth, setToast }) {
-  if (DEMO_MODE) return <section className="auth-strip demo-auth"><div><span className="eyebrow">DEMO WORKSPACE</span><h2>Previewing the full dashboard with contract-matched mock data.</h2><p>Every dashboard mirrors the current Express route contract. Disable demo mode to use the real backend.</p></div><div className="auth-demo-actions"><StatusPill>Offline-safe demo</StatusPill></div></section>;
-  const [mode, setMode] = useState('signin');
-  const [step, setStep] = useState(0);
-  const [email, setEmail] = useState('demo@valmont.local');
-  const [password, setPassword] = useState('password123');
-  const [busy, setBusy] = useState(false);
-  const [quiz, setQuiz] = useState({ displayName: '', monthlyIncome: 2000, dailyLearningMinutes: 30, investmentCapital: 500, background: 'career professional' });
-  const [classification, setClassification] = useState(null);
 
-  const submitSignIn = async () => {
-    setBusy(true);
-    try {
-      const res = await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Authentication failed');
-      onAuth(data);
-    } catch (e) { setToast(e.message); } finally { setBusy(false); }
-  };
+async function postAuth(path, body, token) {
+  if (DEMO_MODE) return demoResponse(path);
+  const res = await fetch(`${API}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.message || `Request failed (${res.status})`);
+  return data;
+}
 
-  const submitSignup = async () => {
-    setBusy(true);
-    try {
-      const res = await fetch(`${API}/api/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          onboarding: {
-            displayName: quiz.displayName,
-            monthlyIncome: Number(quiz.monthlyIncome),
-            dailyLearningMinutes: Number(quiz.dailyLearningMinutes),
-            investmentCapital: Number(quiz.investmentCapital),
-            background: quiz.background
-          }
-        })
+function GoogleButton({ onCredential, setToast, clientId }) {
+  const slotRef = useRef(null);
+  const cbRef = useRef(onCredential);
+  cbRef.current = onCredential;
+  const id = clientId || GOOGLE_CLIENT_ID;
+  useEffect(() => {
+    if (!id) return undefined;
+    const render = () => {
+      if (!window.google?.accounts?.id || !slotRef.current) return;
+      slotRef.current.innerHTML = '';
+      window.google.accounts.id.initialize({
+        client_id: id,
+        callback: (res) => cbRef.current(res.credential)
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Authentication failed');
-      setClassification(data.classification || null);
+      window.google.accounts.id.renderButton(slotRef.current, { theme: 'filled_black', size: 'large', width: 360, text: 'continue_with', shape: 'rectangular' });
+    };
+    if (window.google?.accounts?.id) { render(); return undefined; }
+    const existing = document.getElementById('google-gsi');
+    if (existing) { existing.addEventListener('load', render); return () => existing.removeEventListener('load', render); }
+    const script = document.createElement('script');
+    script.id = 'google-gsi';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.onload = render;
+    script.onerror = () => setToast?.('Could not load Google Sign-In. Use email instead, or check GOOGLE_CLIENT_ID.');
+    document.head.appendChild(script);
+    return undefined;
+  }, [setToast, id]);
+  if (!id) {
+    return DEMO_MODE
+      ? <button type="button" className="google-btn" onClick={() => onCredential('demo-google-token')}>Continue with Google</button>
+      : <p className="muted">Google Sign-In needs the same OAuth client ID on Render (<code>GOOGLE_CLIENT_ID</code>) and, optionally, Vercel (<code>VITE_GOOGLE_CLIENT_ID</code>). Add this site to Authorized JavaScript origins in Google Cloud.</p>;
+  }
+  return <div className="google-slot" ref={slotRef} />;
+}
+
+function Landing({ onSignIn, onSignUp }) {
+  const paths = [
+    ['Students', 'Starter identity with zero history'],
+    ['Career professionals', 'Short, goal-based guidance'],
+    ['Small merchants', 'Cash-flow that fits a shop day'],
+    ['Growing merchants', 'Health score as you scale'],
+    ['Banks', 'Expected-loss on one shared score'],
+    ['Organizations', 'Workforce care, not extraction'],
+    ['Builders', 'Transparent engines, shown plainly']
+  ];
+  return (
+    <div className="landing public-page">
+      <div className="hero-grid">
+        <div className="hero-copy">
+          <span className="eyebrow">UNIVERSAL FINANCE PLATFORM</span>
+          <h1>You belong here —<br /><em>whatever your starting point.</em></h1>
+          <p>Valmont is a warm, inclusive finance OS. One portable trust score powers a wallet, loans, investing, protection, and business intelligence. Students, shops, banks, organizations, and builders share the same table — never a second-class path.</p>
+          <div className="hero-actions">
+            <button type="button" className="primary-btn" onClick={onSignIn}>Sign in with Google</button>
+            <button type="button" className="secondary-btn" onClick={onSignUp}>Create an account</button>
+          </div>
+        </div>
+        <div className="hero-score">
+          <div className="score-ring"><div><strong>78</strong><span>TRUST</span></div></div>
+          <div className="score-caption"><span className="status-dot positive" /> One signal, many lenses</div>
+        </div>
+      </div>
+      <div className="feature-line">{['Google sign-in', 'Warm onboarding quiz', 'Tier-aware AI', 'Timescale signals', 'Solana attestation', 'Multi-asset wallet'].map(x => <span key={x}>{x}</span>)}</div>
+      <div className="section-title"><span className="eyebrow">EVERY PATH IS VALID</span><h2>We meet you where you are.</h2></div>
+      <div className="lens-grid">{paths.map(([t, s]) => <div key={t} className="lens-card"><span className="accent teal" /><div><span className="eyebrow">{t}</span><h3>{s}</h3></div></div>)}</div>
+    </div>
+  );
+}
+
+function AuthPage({ onAuth, setToast, onBack, mode = 'signin', setMode, googleClientId }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const path = mode === 'signin' ? '/api/auth/login' : '/api/auth/signup';
+      const data = await postAuth(path, { email, password });
       onAuth(data);
     } catch (e) { setToast(e.message); } finally { setBusy(false); }
   };
+  const onGoogle = async (idToken) => {
+    setBusy(true);
+    try {
+      const data = await postAuth('/api/auth/google', { idToken });
+      onAuth(data);
+    } catch (e) { setToast(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="public-page auth-page">
+      <section className="auth-card">
+        <span className="eyebrow">{mode === 'signin' ? 'WELCOME BACK' : 'CREATE YOUR PLACE HERE'}</span>
+        <h1>{mode === 'signin' ? 'Sign in to Valmont.' : 'Join Valmont — every path is valid.'}</h1>
+        <p>Continue with Google (sign-in and sign-up are the same door). After you arrive we ask a few gentle questions — income, learning time, capital, background — so your AI guide fits real life, not an ideal customer.</p>
+        <div className="segmented"><button type="button" className={mode === 'signin' ? 'selected' : ''} onClick={() => setMode('signin')}>Sign in</button><button type="button" className={mode === 'signup' ? 'selected' : ''} onClick={() => setMode('signup')}>Sign up</button></div>
+        <GoogleButton clientId={googleClientId} onCredential={onGoogle} setToast={setToast} />
+        <div className="or-line"><span>or email</span></div>
+        <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" autoComplete="email" />
+        <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} />
+        <button type="button" className="primary-btn" onClick={submit} disabled={busy || !email || !password}>{busy ? 'Connecting…' : mode === 'signin' ? 'Enter with email' : 'Create account'}</button>
+        <button type="button" className="text-btn" onClick={onBack}>Back to landing</button>
+      </section>
+    </div>
+  );
+}
 
-  if (mode === 'signin') {
-    return <section className="auth-strip"><div><span className="eyebrow">WELCOME BACK</span><h2>Your workspace is waiting.</h2><p>Sign in to reopen every lens on the same trust engine — wallet, lending, learning, and AI assistance tailored to you.</p></div><div className="auth-form"><div className="segmented"><button type="button" className="selected" onClick={() => setMode('signin')}>Sign in</button><button type="button" onClick={() => { setMode('signup'); setStep(0); }}>Create</button></div><input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" /><input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" /><button type="button" className="primary-btn" onClick={submitSignIn} disabled={busy}>{busy ? 'Connecting…' : 'Enter workspace'}</button></div></section>;
-  }
+function classifyQuizLocally(payload) {
+  const bg = String(payload.background || '').toLowerCase();
+  const income = Number(payload.monthlyIncome || 0);
+  const capital = Number(payload.investmentCapital || 0);
+  const learnMin = Number(payload.dailyLearningMinutes || 0);
+  let id = 'career_professionals';
+  if (/(bank|lender|credit.?union|fintech.?lender)/.test(bg)) id = 'banks';
+  else if (/(organiz|enterprise|ngo|company|employer|corp)/.test(bg)) id = 'organizations';
+  else if (/(hack|security|developer|engineer|builder|coder|tech)/.test(bg)) id = 'hackers';
+  else if (/(student|school|university|college|learner)/.test(bg) || (income < 800 && capital < 2000)) id = 'students';
+  else if (/(big.?merchant|large.?merchant|chain|franchise)/.test(bg) || (/(merchant|shop|retail|store|seller)/.test(bg) && capital >= 25000)) id = 'big_merchants';
+  else if (/(merchant|shop|retail|store|seller|vendor|stall)/.test(bg) || (capital >= 1500 && capital < 25000 && /(business|trade)/.test(bg))) id = 'small_merchant';
+  else if (income >= 4000 || capital >= 15000) id = 'career_professionals';
+  else if (learnMin >= 45 && income < 1500) id = 'students';
+  const tier = DEMO.authTiers.tiers.find(t => t.id === id) || DEMO.authTiers.tiers[1];
+  const role = id === 'banks' ? 'lender' : id === 'organizations' ? 'enterprise' : 'individual';
+  return { id, tier, role };
+}
 
+function OnboardingQuiz({ token, user, setToast, onDone }) {
+  const [step, setStep] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [quiz, setQuiz] = useState({ displayName: user?.displayName || '', monthlyIncome: '', dailyLearningMinutes: '', investmentCapital: '', background: 'career professional' });
+  const backgrounds = [
+    ['student', 'Student / early earner'],
+    ['career professional', 'Career professional'],
+    ['small merchant', 'Small merchant / shop'],
+    ['big merchant', 'Growing / larger merchant'],
+    ['bank', 'Bank or lending partner'],
+    ['organization / enterprise', 'Organization / enterprise'],
+    ['hacker / builder / tech', 'Builder, hacker, or technologist'],
+    ['other', 'Something else — still welcome']
+  ];
   const quizSteps = [
-    { title: 'First, what should we call you?', body: 'No pressure — a first name, nickname, or just “friend” is perfect.', fields: [['displayName', 'Preferred name', 'text', 'Alex']] },
-    { title: 'About how much do you earn each month?', body: 'Any number is welcome. We use this only to personalize guidance — never to gatekeep.', fields: [['monthlyIncome', 'Monthly income (USD)', 'number', 2000]] },
-    { title: 'How much time can you spend learning?', body: 'Five quiet minutes still counts. We will pace tutorials around your real life.', fields: [['dailyLearningMinutes', 'Minutes per day', 'number', 30]] },
-    { title: 'What capital could you invest if you chose to?', body: 'Zero is a valid and respected answer. Growth can start with understanding.', fields: [['investmentCapital', 'Investment capital (USD)', 'number', 500]] },
-    { title: 'What best describes your background?', body: 'Banks, shops, students, builders — every path belongs here.', fields: [['background', 'Background', 'select', 'career professional']] }
+    { key: 'displayName', title: 'What should we call you?', body: 'A first name, nickname, or just “friend” is perfect. There is no wrong answer.', kind: 'text', label: 'Preferred name' },
+    { key: 'monthlyIncome', title: 'About how much do you earn each month?', body: 'Any number is welcome — including zero. We use this only to personalize guidance, never to gatekeep or judge.', kind: 'number', label: 'Monthly income (USD)', chips: [['0', 'Starting at zero'], ['400', 'Modest'], ['2000', 'Steady'], ['8000', 'Comfortable']] },
+    { key: 'dailyLearningMinutes', title: 'How much time can you spend learning each day?', body: 'Five quiet minutes still counts. We will pace tutorials around your real life, not an ideal schedule.', kind: 'number', label: 'Minutes per day', chips: [['5', '5 min'], ['15', '15 min'], ['30', '30 min'], ['60', '1 hour']] },
+    { key: 'investmentCapital', title: 'What capital could you invest if you chose to?', body: 'Zero is a respected answer. Understanding can start before money does.', kind: 'number', label: 'Investment capital (USD)', chips: [['0', 'None yet'], ['250', 'A little'], ['5000', 'Some runway'], ['40000', 'Meaningful']] },
+    { key: 'background', title: 'What best describes your background?', body: 'Banks, shops, students, builders, organizations — every path belongs here. Pick the closest, not a perfect label.', kind: 'select', label: 'Background' }
   ];
   const current = quizSteps[step];
-  const backgrounds = ['student', 'career professional', 'small merchant', 'big merchant', 'bank', 'organization / enterprise', 'hacker / builder / tech', 'other'];
-
+  const finish = async () => {
+    setBusy(true);
+    try {
+      const payload = {
+        displayName: quiz.displayName,
+        monthlyIncome: Number(quiz.monthlyIncome || 0),
+        dailyLearningMinutes: Number(quiz.dailyLearningMinutes || 0),
+        investmentCapital: Number(quiz.investmentCapital || 0),
+        background: quiz.background
+      };
+      if (DEMO_MODE) {
+        const { id, tier, role } = classifyQuizLocally(payload);
+        onDone({
+          token: token || 'demo-token',
+          user: { ...(user || DEMO_USER), customerTier: id, displayName: quiz.displayName || user?.displayName, onboarding: payload, role: user?.role && user.role !== 'individual' ? user.role : role, tierMeta: { id, ...tier } },
+          classification: { customerTier: id, ...tier },
+          tierMeta: { id, ...tier },
+          welcome: tier.welcome,
+          needsOnboarding: false
+        });
+        return;
+      }
+      const data = await postAuth('/api/auth/onboarding', payload, token);
+      onDone(data);
+    } catch (e) { setToast(e.message); } finally { setBusy(false); }
+  };
   return (
-    <section className="auth-strip onboarding-strip">
-      <div>
-        <span className="eyebrow">WARM ONBOARDING · STEP {step + 1} OF {quizSteps.length}</span>
-        <h2>{current.title}</h2>
+    <div className="public-page auth-page">
+      <section className="auth-card quiz-card">
+        <div className="quiz-meter" aria-hidden="true"><span style={{ width: `${((step + 1) / quizSteps.length) * 100}%` }} /></div>
+        <span className="eyebrow">WARM ONBOARDING · {step + 1} OF {quizSteps.length}</span>
+        <h1>{current.title}</h1>
         <p>{current.body}</p>
-        {classification && <StatusPill>{classification.label || classification.customerTier}</StatusPill>}
-      </div>
-      <div className="auth-form onboarding-form">
-        <div className="segmented"><button type="button" onClick={() => setMode('signin')}>Sign in</button><button type="button" className="selected" onClick={() => setMode('signup')}>Create</button></div>
-        {step === 0 && <><input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" /><input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" /></>}
-        {current.fields.map(([key, label, type]) => (
-          <label className="field" key={key} style={{ gridColumn: '1 / -1' }}>
-            <span>{label}</span>
-            {type === 'select'
-              ? <select value={quiz[key]} onChange={e => setQuiz(q => ({ ...q, [key]: e.target.value }))}>{backgrounds.map(b => <option key={b} value={b}>{b}</option>)}</select>
-              : <input type={type} value={quiz[key]} onChange={e => setQuiz(q => ({ ...q, [key]: e.target.value }))} />}
-          </label>
-        ))}
-        <div className="button-row" style={{ gridColumn: '1 / -1' }}>
+        <label className="field">
+          <span>{current.label}</span>
+          {current.kind === 'select'
+            ? <select value={quiz.background} onChange={e => setQuiz(q => ({ ...q, background: e.target.value }))}>{backgrounds.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+            : <input type={current.kind} value={quiz[current.key]} onChange={e => setQuiz(q => ({ ...q, [current.key]: e.target.value }))} placeholder={current.kind === 'number' ? '0 is welcome' : 'Optional'} />}
+        </label>
+        {current.chips && (
+          <div className="chip-row">
+            {current.chips.map(([value, label]) => (
+              <button type="button" key={value} className={`choice-chip ${String(quiz[current.key]) === value ? 'selected' : ''}`} onClick={() => setQuiz(q => ({ ...q, [current.key]: value }))}>{label}</button>
+            ))}
+          </div>
+        )}
+        <div className="button-row">
           {step > 0 && <button type="button" className="secondary-btn" onClick={() => setStep(s => s - 1)}>Back</button>}
           {step < quizSteps.length - 1
             ? <button type="button" className="primary-btn" onClick={() => setStep(s => s + 1)}>Continue</button>
-            : <button type="button" className="primary-btn" onClick={submitSignup} disabled={busy}>{busy ? 'Welcoming you…' : 'Join Valmont'}</button>}
+            : <button type="button" className="primary-btn" onClick={finish} disabled={busy}>{busy ? 'Finding your path…' : 'Meet your AI guide'}</button>}
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
-function Landing({ setPage }) { return <div className="landing"><div className="hero-grid"><div className="hero-copy"><span className="eyebrow">UNIVERSAL FINANCE PLATFORM · CHECKPOINT 15</span><h1>One identity.<br /><em>Many financial lenses.</em></h1><p>Portable trust, a multi-asset wallet, lending, investing, protection and business intelligence — designed around one explainable risk engine.</p><div className="hero-actions"><button type="button" className="primary-btn" onClick={() => document.querySelector('.auth-strip')?.scrollIntoView({ behavior: 'smooth' })}>Connect identity</button><button type="button" className="secondary-btn" onClick={() => setPage('overview')}>Explore product</button></div></div><div className="hero-score"><div className="score-ring"><div><strong>78</strong><span>TRUST</span></div></div><div className="score-caption"><span className="status-dot positive" /> Score is the common signal</div></div></div><div className="feature-line">{['Income verified', 'Timescale signals', 'Solana attestation', 'AI advisory', 'Multi-asset wallet', 'Lender lens'].map(x => <span key={x}>{x}</span>)}</div><div className="lens-grid">{['identity', 'wallet', 'loans', 'invest', 'insurance', 'merchant'].map(id => <button type="button" key={id} onClick={() => setPage(id)} className="lens-card"><span className={`accent ${moduleMeta[id][2]}`} /><div><span className="eyebrow">{moduleMeta[id][0]}</span><h3>{moduleMeta[id][1]}</h3></div><span className="arrow">↗</span></button>)}</div></div>; }
+
+function WelcomeGate({ user, classification, onContinue, onLogout }) {
+  const meta = classification || user?.tierMeta || {};
+  const name = user?.displayName ? `, ${user.displayName}` : '';
+  return (
+    <div className="public-page auth-page">
+      <section className="auth-card welcome-card">
+        <span className="eyebrow">YOUR PLACE AT VALMONT</span>
+        <h1>{meta.welcome || `Welcome${name}. You belong here.`}</h1>
+        <StatusPill>{meta.label || String(user?.customerTier || '').replace(/_/g, ' ')}</StatusPill>
+        <p className="ai-assist">{meta.aiAssistance || user?.aiAssistance || 'Your AI assistance will stay practical, inclusive, and paced to you.'}</p>
+        <p className="muted">I will focus on {meta.aiFocus || 'inclusive financial literacy'} — always educational, never a lecture.</p>
+        <div className="button-row"><button type="button" className="primary-btn" onClick={onContinue}>Enter dashboard</button><button type="button" className="ghost-btn" onClick={onLogout}>Sign out</button></div>
+      </section>
+    </div>
+  );
+}
 
 function PageRouter(props) { const map = { overview: Overview, identity: Identity, wallet: Wallet, invest: Invest, insurance: Insurance, remit: Remit, learn: Learn, budget: Budget, loans: Loans, lender: Lender, merchant: Merchant, enterprise: Enterprise, ml: ModelTraining, ds: DsApplications }; const C = map[props.page] || Overview; return <C {...props} />; }
 
@@ -303,7 +520,9 @@ function Overview({ token, user, setPage, setToast }) {
   const refresh = async () => { const [s, b, l] = await Promise.allSettled([api(`/api/trust-score/${user.id}`), api('/api/wallet/balance'), api('/api/loans/mine')]); if (s.status === 'fulfilled') setScore(s.value); if (b.status === 'fulfilled') setBalance(b.value); if (l.status === 'fulfilled') setLoans(normalize(l.value, ['loans'])); };
   useEffect(() => { refresh(); }, []);
   const ts = normalize(score, ['trustScore']) || {}; const scoreValue = Number(ts.score || 0);
-  return <><PageHeader eyebrow="OVERVIEW / PERSONAL" title={`Good to see you${user?.email ? `, ${user.email.split('@')[0]}` : ''}.`} description="Your financial picture, condensed into the signals that matter." right={<Button variant="secondary" onClick={refresh}>Refresh data</Button>} /><div className="overview-grid"><Panel title="Trust score" kicker="CORE SIGNAL" className="score-panel"><div className="score-layout"><div className="big-score"><strong>{scoreValue || '—'}</strong><span>/ 100</span></div><div><StatusPill>On-chain attested</StatusPill><p className="muted">The same score can be read by you, a lender, an insurer or a business — each through its own lens.</p><button type="button" className="text-btn" onClick={() => setPage('identity')}>Review evidence →</button></div></div><div className="meter"><span style={{ width: `${Math.min(100, scoreValue)}%` }} /></div></Panel><Panel title="Wallet" kicker="LIQUIDITY"><div className="money">{money(balance?.balance)}</div><div className="split-row"><span>Available</span><span>Vault {money(balance?.savingsVaultBalance)}</span></div><button type="button" className="text-btn" onClick={() => setPage('wallet')}>Open wallet →</button></Panel></div><div className="stats-row"><Stat label="Trust signal" value={scoreValue || '—'} sub="Shared core score" /><Stat label="Wallet asset" value="USD" sub="Primary ledger" /><Stat label="Loans" value={Array.isArray(loans) ? loans.length : '—'} sub="Current requests" /><Stat label="Network" value="Solana" sub="Devnet attestation" tone="teal" /></div><div className="section-title"><span className="eyebrow">ONE ENGINE · MANY LENSES</span><h2>Choose a view.</h2></div><div className="lens-grid dense">{[['identity', 'Your identity', 'Trust score + evidence'], ['loans', 'Borrow', 'Request or fund'], ['invest', 'Grow', 'Six-bucket allocation'], ['insurance', 'Protect', 'Score-linked cover'], ['merchant', 'Operate', 'Business health'], ['enterprise', 'Workforce', 'Org-level signal']].map(([id, t, s]) => <button type="button" key={id} className="lens-card" onClick={() => setPage(id)}><span className={`accent ${moduleMeta[id][2]}`} /><div><span className="eyebrow">{t}</span><h3>{s}</h3></div><span className="arrow">↗</span></button>)}</div></>;
+  const meta = user?.tierMeta || DEMO.authTiers.tiers.find(t => t.id === user?.customerTier) || {};
+  const greetName = user?.displayName || (user?.email ? user.email.split('@')[0] : '');
+  return <><PageHeader eyebrow="OVERVIEW / PERSONAL" title={`Good to see you${greetName ? `, ${greetName}` : ''}.`} description={meta.welcome || 'Your financial picture, condensed into the signals that matter.'} right={<Button variant="secondary" onClick={refresh}>Refresh data</Button>} /><Panel title="Your AI guide" kicker={meta.label || 'INCLUSIVE ASSISTANCE'} className="ai-guide-panel"><p className="ai-assist">{meta.aiAssistance || user?.aiAssistance || 'I will stay practical, inclusive, and paced to you.'}</p><p className="muted">Focus: {meta.aiFocus || 'inclusive financial literacy'}. Open Learn for tutorials, Q&amp;A, and a plan cut to your daily minutes.</p><button type="button" className="text-btn" onClick={() => setPage('learn')}>Talk with your AI guide →</button></Panel><div className="overview-grid"><Panel title="Trust score" kicker="CORE SIGNAL" className="score-panel"><div className="score-layout"><div className="big-score"><strong>{scoreValue || '—'}</strong><span>/ 100</span></div><div><StatusPill>On-chain attested</StatusPill><p className="muted">The same score can be read by you, a lender, an insurer or a business — each through its own lens.</p><button type="button" className="text-btn" onClick={() => setPage('identity')}>Review evidence →</button></div></div><div className="meter"><span style={{ width: `${Math.min(100, scoreValue)}%` }} /></div></Panel><Panel title="Wallet" kicker="LIQUIDITY"><div className="money">{money(balance?.balance)}</div><div className="split-row"><span>Available</span><span>Vault {money(balance?.savingsVaultBalance)}</span></div><button type="button" className="text-btn" onClick={() => setPage('wallet')}>Open wallet →</button></Panel></div><div className="stats-row"><Stat label="Trust signal" value={scoreValue || '—'} sub="Shared core score" /><Stat label="Wallet asset" value="USD" sub="Primary ledger" /><Stat label="Loans" value={Array.isArray(loans) ? loans.length : '—'} sub="Current requests" /><Stat label="Network" value="Solana" sub="Devnet attestation" tone="teal" /></div><div className="section-title"><span className="eyebrow">ONE ENGINE · MANY LENSES</span><h2>Choose a view.</h2></div><div className="lens-grid dense">{[['identity', 'Your identity', 'Trust score + evidence'], ['loans', 'Borrow', 'Request or fund'], ['invest', 'Grow', 'Six-bucket allocation'], ['insurance', 'Protect', 'Score-linked cover'], ['merchant', 'Operate', 'Business health'], ['enterprise', 'Workforce', 'Org-level signal']].map(([id, t, s]) => <button type="button" key={id} className="lens-card" onClick={() => setPage(id)}><span className={`accent ${moduleMeta[id][2]}`} /><div><span className="eyebrow">{t}</span><h3>{s}</h3></div><span className="arrow">↗</span></button>)}</div></>;
 }
 
 function Identity({ token, setToast }) {
@@ -357,13 +576,14 @@ function Learn({ token, setToast, user }) {
     if (r[2].status === 'fulfilled') setHistory(h => ({ ...h, plan: r[2].value.history || [] }));
   };
   useEffect(() => { load(); }, []);
+  const meta = user?.tierMeta || DEMO.authTiers.tiers.find(t => t.id === user?.customerTier) || {};
   const tierPersona = user?.customerTier === 'students' ? 'student'
     : user?.customerTier === 'hackers' ? 'curious technologist'
     : user?.customerTier?.includes('merchant') ? 'merchant operator'
     : user?.customerTier === 'banks' ? 'bank risk analyst'
     : user?.customerTier === 'organizations' ? 'enterprise people-ops lead'
     : 'salaried professional';
-  return <><PageHeader eyebrow="YOU / LEARNING" title="Learn finance at your pace." description={`Tutorials, Q&A and a short learning plan — personalized for ${user?.customerTier ? user.customerTier.replace(/_/g, ' ') : 'your path'}, with optional ElevenLabs narration.`} /><div className="two-col"><Panel title="Tutorial" kicker="AI · GEMINI → GROQ"><Field label="Topic"><input id="topic" defaultValue="how compound interest works" /></Field><div className="form-grid"><Field label="Persona"><select id="persona" defaultValue={tierPersona}><option>gig worker</option><option>student</option><option>salaried professional</option><option>curious technologist</option><option>merchant operator</option><option>bank risk analyst</option><option>enterprise people-ops lead</option></select></Field><Field label="Language"><input id="language" defaultValue="English" /></Field></div><label className="check"><input id="audio" type="checkbox" /> Narrate with ElevenLabs</label><Button onClick={async () => { const __r = await api('/api/education/tutorial', { method: 'POST', body: JSON.stringify({ topic: document.getElementById('topic').value, persona: document.getElementById('persona').value, language: document.getElementById('language').value, withAudio: document.getElementById('audio').checked }) }); setData(d => ({ ...d, tutorial: __r })); }}>Generate tutorial</Button></Panel><Panel title="Ask a question" kicker="LIVE GUIDANCE"><Field label="Question"><textarea id="question" defaultValue="What is an emergency fund?" /></Field><Button onClick={async () => { const __r = await api('/api/education/qa', { method: 'POST', body: JSON.stringify({ question: document.getElementById('question').value }) }); setData(d => ({ ...d, qa: __r })); }}>Ask</Button></Panel></div><Panel title="Your learning plan" kicker="TIER-PACED"><div className="form-grid"><Field label="Goal"><input id="learnGoal" defaultValue="build a 3-month emergency fund" /></Field><Field label="Weeks"><input id="learnWeeks" type="number" defaultValue="4" /></Field></div><Button onClick={async () => { const __r = await api('/api/education/learning-plan', { method: 'POST', body: JSON.stringify({ persona: document.getElementById('persona')?.value || tierPersona, goal: document.getElementById('learnGoal').value, horizonWeeks: Number(document.getElementById('learnWeeks').value) }) }); setData(d => ({ ...d, plan: __r })); }}>Build plan</Button><JsonOutput data={data.plan || data.qa || data.tutorial} /></Panel><div className="two-col"><Panel title="Tutorial history" kicker="SAVED OUTPUTS"><JsonOutput data={history.tutorial.slice(0, 3)} /></Panel><Panel title="Q&A + plans" kicker="SAVED OUTPUTS"><JsonOutput data={{ qa: history.qa.slice(0, 2), plans: history.plan.slice(0, 2) }} /></Panel></div></>;
+  return <><PageHeader eyebrow="YOU / LEARNING" title="Learn finance at your pace." description={meta.aiAssistance || `Tutorials, Q&A and a short learning plan — personalized for ${user?.customerTier ? user.customerTier.replace(/_/g, ' ') : 'your path'}, with optional ElevenLabs narration.`} /><div className="two-col"><Panel title="Tutorial" kicker="AI · GEMINI → GROQ"><Field label="Topic"><input id="topic" defaultValue="how compound interest works" /></Field><div className="form-grid"><Field label="Persona"><select id="persona" defaultValue={tierPersona}><option>gig worker</option><option>student</option><option>salaried professional</option><option>curious technologist</option><option>merchant operator</option><option>bank risk analyst</option><option>enterprise people-ops lead</option></select></Field><Field label="Language"><input id="language" defaultValue="English" /></Field></div><label className="check"><input id="audio" type="checkbox" /> Narrate with ElevenLabs</label><Button onClick={async () => { const __r = await api('/api/education/tutorial', { method: 'POST', body: JSON.stringify({ topic: document.getElementById('topic').value, persona: document.getElementById('persona').value, language: document.getElementById('language').value, withAudio: document.getElementById('audio').checked }) }); setData(d => ({ ...d, tutorial: __r })); }}>Generate tutorial</Button></Panel><Panel title="Ask a question" kicker="LIVE GUIDANCE"><Field label="Question"><textarea id="question" defaultValue="What is an emergency fund?" /></Field><Button onClick={async () => { const __r = await api('/api/education/qa', { method: 'POST', body: JSON.stringify({ question: document.getElementById('question').value }) }); setData(d => ({ ...d, qa: __r })); }}>Ask</Button></Panel></div><Panel title="Your learning plan" kicker="TIER-PACED"><div className="form-grid"><Field label="Goal"><input id="learnGoal" defaultValue="build a 3-month emergency fund" /></Field><Field label="Weeks"><input id="learnWeeks" type="number" defaultValue="4" /></Field></div><Button onClick={async () => { const __r = await api('/api/education/learning-plan', { method: 'POST', body: JSON.stringify({ persona: document.getElementById('persona')?.value || tierPersona, goal: document.getElementById('learnGoal').value, horizonWeeks: Number(document.getElementById('learnWeeks').value) }) }); setData(d => ({ ...d, plan: __r })); }}>Build plan</Button><JsonOutput data={data.plan || data.qa || data.tutorial} /></Panel><div className="two-col"><Panel title="Tutorial history" kicker="SAVED OUTPUTS"><JsonOutput data={history.tutorial.slice(0, 3)} /></Panel><Panel title="Q&A + plans" kicker="SAVED OUTPUTS"><JsonOutput data={{ qa: history.qa.slice(0, 2), plans: history.plan.slice(0, 2) }} /></Panel></div></>;
 }
 
 function ModelTraining({ token, setToast }) {

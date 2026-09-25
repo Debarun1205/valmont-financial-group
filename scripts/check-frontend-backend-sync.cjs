@@ -38,6 +38,8 @@ const dynamicPatterns = [
   '/api/auth/tiers',
   '/api/auth/me',
   '/api/auth/onboarding',
+  '/api/auth/google',
+  '/api/auth/config',
   '/api/ml/models',
   '/api/ml/features',
   '/api/ml/runs',

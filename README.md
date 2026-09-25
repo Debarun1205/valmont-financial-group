@@ -31,6 +31,7 @@ A universal finance app: portable trust score, multi-asset wallet, loans, AI adv
 | File | Purpose |
 |------|---------|
 | [`DEPLOY.md`](./DEPLOY.md) | Full Neon → Render → Vercel walkthrough (Git Bash friendly) |
+| [`docs/api-keys.md`](./docs/api-keys.md) | Render + Vercel env vars and where to create each key |
 | [`docs/frontend-backend-sync.md`](./docs/frontend-backend-sync.md) | Endpoint coverage (61/61) |
 | [`docs/frontend-verification.md`](./docs/frontend-verification.md) | Dashboard verification |
 | [`docs/dev-context-handoff.md`](./docs/dev-context-handoff.md) | Full product/build handoff |

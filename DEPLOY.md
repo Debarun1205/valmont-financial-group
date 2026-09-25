@@ -59,15 +59,17 @@ Neon already supports SSL — we set `DATABASE_SSL=true` on Render.
    - **Build Command:** `npm install`
    - **Start Command:** `npm start`
    - **Instance type:** Free
-4. **Environment** variables:
+4. **Environment** variables (full table: [`docs/api-keys.md`](./docs/api-keys.md)):
 
 | Key | Value |
 |-----|--------|
 | `DATABASE_URL` | (paste Neon URL) |
 | `DATABASE_SSL` | `true` |
 | `DEV_AUTH_BYPASS` | `true` |
-| `GROQ_API_KEY` | (from https://console.groq.com) |
-| `GEMINI_API_KEY` | (optional) |
+| `JWT_SECRET` | long random string |
+| `GOOGLE_CLIENT_ID` | Google OAuth **Web** client ID |
+| `GROQ_API_KEY` | (from https://console.groq.com/keys) |
+| `GEMINI_API_KEY` | (optional — https://aistudio.google.com/apikey) |
 | `CORS_ORIGIN` | leave blank for now — fill after Vercel |
 
 5. Click **Create Web Service** → wait until deploy is Live
@@ -93,6 +95,8 @@ Neon already supports SSL — we set `DATABASE_SSL=true` on Render.
 | Key | Value |
 |-----|--------|
 | `VITE_API_URL` | `https://YOUR-API.onrender.com` (no trailing slash) |
+| `VITE_GOOGLE_CLIENT_ID` | same Google OAuth client ID as Render |
+| `VITE_DEMO_MODE` | leave unset / `false` so Google and onboarding hit the live API |
 
 5. Deploy → copy the URL, e.g. `https://valmont-financial-group.vercel.app`
 6. **That Vercel URL is the live product link for judges.**
@@ -111,10 +115,11 @@ Neon already supports SSL — we set `DATABASE_SSL=true` on Render.
 
 ## F) Demo path for judges (2 minutes)
 
-1. Open the **Vercel live link**
-2. **Create** → complete warm onboarding quiz → Join Valmont
-3. Click through: Overview → Identity → Wallet → Loans → Investments → Learn → **AI Lab** (Model training + DS applications)
-4. Before the round, wake the API: open `/health` on Render once
+1. Open the **Vercel live link** (landing)
+2. **Sign in with Google** (or email sign up)
+3. Complete the warm onboarding quiz (income, daily learning time, capital, background) → meet your AI guide → **Enter dashboard**
+4. Click through: Overview → Identity → Wallet → Loans → Investments → Learn → **AI Lab**
+5. Before the round, wake the API: open `/health` on Render once
 
 ---
 
@@ -159,6 +164,8 @@ Open http://localhost:5173
 | Symptom | Fix |
 |---------|-----|
 | Signup fails / CORS error | Set `CORS_ORIGIN` on Render to exact Vercel URL, redeploy API |
+| Google button missing / origin error | Add Vercel URL to Google **Authorized JavaScript origins**; set `GOOGLE_CLIENT_ID` + `VITE_GOOGLE_CLIENT_ID`; redeploy |
+| Dumped into mock dashboard | Unset `VITE_DEMO_MODE` on Vercel (keep `VITE_API_URL`) |
 | `/health` 502 / spinning | Wait for first Render boot (can take 1–2 min on free tier) |
 | Blank dashboards | Confirm `VITE_API_URL` has no trailing slash; redeploy Vercel |
 | AI always says MOCK | Add `GROQ_API_KEY` (or `GEMINI_API_KEY`) on Render and redeploy |
@@ -170,6 +177,7 @@ Open http://localhost:5173
 
 - `README.md` — product + local stack
 - `DEPLOY.md` — short deploy checklist
+- `docs/api-keys.md` — Render/Vercel env vars and key links
 - `docs/frontend-backend-sync.md` — API contract coverage
 - `docs/frontend-verification.md` — dashboard verification
 - `docs/dev-context-handoff.md` — full hackathon build context

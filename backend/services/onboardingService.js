@@ -17,49 +17,56 @@ const TIERS = [
 const TIER_META = {
   banks: {
     label: 'Bank & lending partners',
-    welcome: 'Welcome — we built Valmont so institutions can read one portable trust signal instead of reinventing risk.',
+    welcome: 'Welcome — we built Valmont so institutions can read one portable trust signal instead of reinventing risk. You belong at this table.',
+    aiAssistance: 'I will help your team inspect expected-loss, fund marketplace loans, and explain the shared score to credit committees — without a second black-box model.',
     aiFocus: 'portfolio risk, expected-loss lenses, marketplace funding workflows',
     suggestedRole: 'lender',
     personaHint: 'bank risk analyst'
   },
   organizations: {
     label: 'Organizations & enterprises',
-    welcome: 'Glad you are here — workforce financial health should feel inclusive, not extractive.',
+    welcome: 'Glad you are here — workforce financial health should feel inclusive, not extractive. We will treat your people with care.',
+    aiAssistance: 'I will roll up employee trust, learning, and loan exposure so people-ops can support staff without shaming anyone’s starting point.',
     aiFocus: 'workforce rollups, employee financial literacy, org-level loan exposure',
     suggestedRole: 'enterprise',
     personaHint: 'enterprise people-ops lead'
   },
   big_merchants: {
     label: 'Growing merchants',
-    welcome: 'Welcome — scale should not mean losing clarity on cash flow and credit lines.',
+    welcome: 'Welcome — scale should not mean losing clarity on cash flow and credit lines. We will keep the picture human.',
+    aiAssistance: 'I will track business-health, revenue trends, and working-capital guidance so growth stays readable, not overwhelming.',
     aiFocus: 'business-health scoring, revenue trends, working-capital guidance',
     suggestedRole: 'individual',
     personaHint: 'growing merchant operator'
   },
   small_merchant: {
     label: 'Small merchants & shops',
-    welcome: 'You are welcome here — whether you run a stall, a kiosk, or a neighborhood shop.',
+    welcome: 'You are welcome here — whether you run a stall, a kiosk, or a neighborhood shop. There is no “too small.”',
+    aiAssistance: 'I will keep cash-flow literacy, remittances, and micro-credit simple — paced to the hours you actually have.',
     aiFocus: 'simple cash-flow literacy, remittances, micro-credit readiness',
     suggestedRole: 'individual',
     personaHint: 'small shop owner'
   },
   hackers: {
     label: 'Builders & security-minded explorers',
-    welcome: 'Welcome, builder — curiosity about systems is a strength here, not a red flag.',
+    welcome: 'Welcome, builder — curiosity about systems is a strength here, not a red flag. We will show our work.',
+    aiAssistance: 'I will explain the risk engine, on-chain attestation, and model outputs in plain language, with the knobs you like to inspect.',
     aiFocus: 'transparent risk engines, on-chain attestation, model explainability',
     suggestedRole: 'individual',
     personaHint: 'curious technologist'
   },
   career_professionals: {
     label: 'Career professionals',
-    welcome: 'Welcome — your time is limited, so guidance stays practical and respectful of your goals.',
+    welcome: 'Welcome — your time is limited, so guidance stays practical and respectful of your goals. No lecture, just a clear next step.',
+    aiAssistance: 'I will keep investing, budgeting, and insurance short and goal-based, so you can act in the minutes you have.',
     aiFocus: 'goal-based investing, budgeting nudges, insurance lenses',
     suggestedRole: 'individual',
     personaHint: 'salaried professional'
   },
   students: {
     label: 'Students & early earners',
-    welcome: 'You belong here — starting with little formal history is exactly why we built a starter identity path.',
+    welcome: 'You belong here — starting with little formal history is exactly why we built a starter identity path. Zero is a valid beginning.',
+    aiAssistance: 'I will teach in small daily bites: starter trust scores, emergency funds, and savings habits that fit a student calendar.',
     aiFocus: 'financial literacy, starter trust scores, gentle savings habits',
     suggestedRole: 'individual',
     personaHint: 'student'
@@ -142,6 +149,7 @@ function classifyCustomerTier(answers) {
     customerTier: tier,
     label: meta.label,
     welcome: meta.welcome,
+    aiAssistance: meta.aiAssistance,
     aiFocus: meta.aiFocus,
     suggestedRole: meta.suggestedRole,
     personaHint: meta.personaHint,
@@ -158,6 +166,8 @@ function buildTierAwareAiContext(userRow) {
     customerTier: tier,
     label: meta.label,
     personaHint: meta.personaHint,
+    welcome: meta.welcome,
+    aiAssistance: meta.aiAssistance,
     aiFocus: meta.aiFocus,
     monthlyIncome: onboarding.monthlyIncome,
     dailyLearningMinutes: onboarding.dailyLearningMinutes,
