@@ -794,20 +794,20 @@ function Budget({ token, setToast }) {
   const saveGoal = async () => {
     await api('/api/budget/goal', { method: 'POST', body: JSON.stringify({ targetSavingsPct: Number(document.getElementById('target').value) }) });
     setToast('Goal saved successfully!');
-    setOut(prev => { const next = {...prev}; delete next.saveGoal; return next; });
+    
     await load();
   };
 
   const getNudge = async () => {
     const res = await api('/api/budget/nudge');
     setNudge(res);
-    setOut({ nudge: res });
+    setToast('Nudge refreshed successfully!');
   };
 
   const viewTrend = async () => {
     const res = await api('/api/budget/spend-trend?weeks=4');
     setTrend(res);
-    setOut({ trend: res });
+    setToast('Spend trend refreshed!');
   };
 
   return <>
@@ -827,7 +827,12 @@ function Budget({ token, setToast }) {
         <Button variant="secondary" onClick={getNudge}>Get nudge</Button>
         <Button variant="secondary" onClick={viewTrend}>View trend</Button>
       </div>
-      <JsonOutput data={Object.keys(out).length > 0 ? out : nudge || goal || trend} />
+      {nudge?.message && (
+        <div className="answer-card" style={{ marginTop: '16px', background: 'var(--surface-container)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-hairline)' }}>
+          <h3 style={{ marginBottom: '8px', color: 'var(--teal)', fontSize: '1rem' }}>Insight</h3>
+          <p style={{ color: 'var(--slate-body)', lineHeight: 1.5, margin: 0, fontSize: '14px' }}>{nudge.message}</p>
+        </div>
+      )}
     </Panel>
     {trend?.trend && <Panel title="Weekly spend" kicker="TIMESCALE WINDOW"><TrendList items={trend.trend} valueKey="spend" /></Panel>}
   </>; 
