@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import LandingPage from './LandingPage.jsx';
 import './styles.css';
@@ -987,8 +987,14 @@ function Enterprise({ token, setToast }) { const api = useApi(token, setToast), 
 function StockPredictor({ setToast }) {
   const [ticker, setTicker] = useState('AAPL');
   const [data, setData] = useState(null);
+  const [isLive, setIsLive] = useState(false);
+  const wsRef = useRef(null);
   
-  const analyze = () => {
+  // Feature 1: Simulated Analysis
+  const analyzeSimulated = () => {
+    setIsLive(false);
+    if (wsRef.current) wsRef.current.close();
+    
     let currentPrice = 150 + Math.random() * 50;
     let cumulativeVP = 0;
     let cumulativeV = 0;
@@ -999,40 +1005,115 @@ function StockPredictor({ setToast }) {
       const price = currentPrice + (Math.random() - 0.5) * 5;
       cumulativeVP += price * vol;
       cumulativeV += vol;
-      history.push({ day: i+1, price, volume: vol });
+      const runningVwap = cumulativeVP / cumulativeV;
+      history.push({ day: i+1, price: Number(price.toFixed(2)), vwap: Number(runningVwap.toFixed(2)), volume: vol });
       currentPrice = price;
     }
     
-    const vwap = cumulativeVP / cumulativeV;
-    const liquidityScore = cumulativeV / 30;
+    const finalVwap = cumulativeVP / cumulativeV;
     
     setData({
       ticker: ticker.toUpperCase(),
-      vwap,
-      liquidityScore,
+      vwap: finalVwap,
+      liquidityScore: cumulativeV / 30,
       currentPrice,
       history
     });
-    setToast('Mathematical analysis complete!');
+    setToast('Simulated mathematical analysis complete!');
   };
+
+  // Feature 2: Live Crypto Data via WebSocket
+  const startLiveCrypto = () => {
+    setIsLive(true);
+    if (wsRef.current) wsRef.current.close();
+    setTicker('BTCUSDT');
+    
+    const ws = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@trade');
+    wsRef.current = ws;
+    
+    let liveHistory = [];
+    let cumulativeVP = 0;
+    let cumulativeV = 0;
+    let tickCount = 0;
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      const price = parseFloat(msg.p);
+      const vol = parseFloat(msg.q);
+      
+      cumulativeVP += price * vol;
+      cumulativeV += vol;
+      tickCount++;
+      
+      // Update state every 5 trades for visual stability
+      if (tickCount % 5 === 0) {
+        const runningVwap = cumulativeVP / cumulativeV;
+        const time = new Date(msg.E).toLocaleTimeString();
+        
+        liveHistory.push({
+          day: time,
+          price: Number(price.toFixed(2)),
+          vwap: Number(runningVwap.toFixed(2)),
+          volume: vol
+        });
+        
+        if (liveHistory.length > 30) liveHistory.shift();
+        
+        setData({
+          ticker: 'BTC/USDT (LIVE)',
+          vwap: runningVwap,
+          liquidityScore: cumulativeV,
+          currentPrice: price,
+          history: [...liveHistory] // clone to trigger re-render
+        });
+      }
+    };
+    
+    setToast('Connected to Live Crypto Market');
+  };
+
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, []);
 
   return (
     <>
-      <PageHeader eyebrow="MARKETS / AI" title="Mathematical Stock Predictor" description="Advanced VWAP and liquidity models for algorithmic trading signals." />
+      <PageHeader eyebrow="MARKETS / AI" title="Mathematical Stock Predictor" description="Advanced VWAP and liquidity models. Use the simulator or stream live real-time crypto trades." />
       <Panel title="Analyze Asset" kicker="PREDICTOR">
         <div className="form-grid">
-          <Field label="Ticker Symbol"><input id="ticker" value={ticker} onChange={e => setTicker(e.target.value)} /></Field>
+          <Field label="Ticker Symbol"><input id="ticker" value={ticker} onChange={e => setTicker(e.target.value)} disabled={isLive} /></Field>
         </div>
-        <Button onClick={analyze}>Run Predictor</Button>
+        <div className="button-row">
+          <Button onClick={analyzeSimulated}>Run Simulation</Button>
+          <Button variant="secondary" onClick={startLiveCrypto}>{isLive ? 'Streaming Live...' : 'Stream Live Crypto Data'}</Button>
+        </div>
       </Panel>
       
       {data && (
-        <div className="stats-row" style={{ marginTop: '24px' }}>
-          <Stat label="Asset" value={data.ticker} sub="Equities" />
-          <Stat label="Current Price" value={'\$' + data.currentPrice.toFixed(2)} sub="Market" />
-          <Stat label="VWAP" value={'\$' + data.vwap.toFixed(2)} sub="Vol-Weighted Avg" />
-          <Stat label="Liquidity Score" value={Math.floor(data.liquidityScore).toLocaleString()} sub="Avg Vol" />
-        </div>
+        <>
+          <div className="stats-row" style={{ marginTop: '24px' }}>
+            <Stat label="Asset" value={data.ticker} sub={isLive ? "Crypto" : "Equities"} />
+            <Stat label="Current Price" value={'\$' + data.currentPrice.toFixed(2)} sub="Market" />
+            <Stat label="VWAP" value={'\$' + data.vwap.toFixed(2)} sub="Vol-Weighted Avg" />
+            <Stat label="Liquidity Score" value={Math.floor(data.liquidityScore).toLocaleString()} sub={isLive ? "Cumulative Vol" : "Avg Vol"} />
+          </div>
+          
+          <Panel title="Price & VWAP Trend" kicker="GRAPHICAL REPRESENTATION" style={{ marginTop: '24px' }}>
+            <div style={{ height: '300px', width: '100%', marginTop: '16px', padding: '16px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data.history}>
+                  <XAxis dataKey="day" stroke="var(--slate-body)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis domain={['auto', 'auto']} stroke="var(--slate-body)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => '\$' + val} />
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--surface-container)', border: '1px solid var(--border-hairline)', borderRadius: '8px', color: 'var(--slate-headline)' }} />
+                  <Line type="monotone" dataKey="price" stroke="var(--teal)" strokeWidth={2} dot={false} name="Price" isAnimationActive={!isLive} />
+                  <Line type="monotone" dataKey="vwap" stroke="var(--risk)" strokeWidth={2} dot={false} name="VWAP" strokeDasharray="5 5" isAnimationActive={!isLive} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Panel>
+        </>
       )}
     </>
   );
