@@ -161,7 +161,7 @@ Respond ONLY as JSON, no markdown fences:
 {"money_market_pct": <int>, "stocks_pct": <int>, "mutual_funds_pct": <int>, "fixed_income_pct": <int>, "retirement_pct": <int>, "reits_pct": <int>, "explanation": "<2-3 sentences, plain language>"}`;
 
   const parsed = await callGeminiJSON(prompt);
-  if (!parsed) return mockAdvice(profile);
+  if (parsed && parsed._error) return { ...mockAdvice(profile), explanation: '[API ERROR] ' + parsed._error }; if (!parsed) return mockAdvice(profile);
 
   return {
     allocation: {
@@ -201,7 +201,7 @@ Respond ONLY as JSON, no markdown fences:
 {"title": "<short title>", "body": "<the tutorial text>", "language": "${language}"}`;
 
   const parsed = await callGeminiJSON(prompt);
-  if (!parsed) return mockTutorial({ topic, persona, language });
+  if (parsed && parsed._error) return { ...mockTutorial({ topic, persona, language }), body: '[API ERROR] ' + parsed._error }; if (!parsed) return mockTutorial({ topic, persona, language });
   return {
     title: parsed.title || topic,
     body: parsed.body || '',
@@ -230,7 +230,7 @@ Respond ONLY as JSON, no markdown fences:
 {"answer": "<2-4 sentence answer>"}`;
 
   const parsed = await callGeminiJSON(prompt);
-  if (!parsed) return mockAnswer({ question, language });
+  if (parsed && parsed._error) return { answer: '[API ERROR] ' + parsed._error, mocked: true }; if (!parsed) return mockAnswer({ question, language });
   return { answer: parsed.answer || '', mocked: false };
 }
 
@@ -251,7 +251,7 @@ Respond ONLY as JSON, no markdown fences:
 {"weeks": [{"week": 1, "topic": "<short phrase>"}, ...]}`;
 
   const parsed = await callGeminiJSON(prompt);
-  if (!parsed || !Array.isArray(parsed.weeks)) return mockLearningPlan({ persona, goal, horizonWeeks, language });
+  if (parsed && parsed._error) return { weeks: [{week: 1, topic: '[API ERROR] ' + parsed._error}], mocked: true }; if (!parsed || !Array.isArray(parsed.weeks)) return mockLearningPlan({ persona, goal, horizonWeeks, language });
   return { weeks: parsed.weeks, mocked: false };
 }
 
