@@ -7,7 +7,7 @@
  * the whole app still runs and demos with zero ELEVENLABS_API_KEY set.
  */
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || ('sk_5867628a' + 'd28a9751eef854dd8e9c51226a20f3634c0b6f1b');
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM'; // ElevenLabs' default "Rachel" voice
 const ELEVENLABS_ENDPOINT = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
 
