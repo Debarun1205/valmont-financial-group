@@ -210,50 +210,86 @@ function persistSession(token, user, extra = {}) {
 function VoiceAssistant({ token }) {
   const [listening, setListening] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [transcript, setTranscript] = useState('');
   const api = useApi(token, () => {});
 
   const startListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Your browser doesn't support Voice Input. Please use Chrome.");
+      alert("Your browser doesn't support Voice Input. Please use Chrome or Edge.");
       return;
     }
     const recognition = new SpeechRecognition();
+    recognition.interimResults = true;
+    recognition.continuous = false;
     
-    recognition.onstart = () => setListening(true);
+    recognition.onstart = () => {
+      setListening(true);
+      setTranscript('Listening...');
+    };
     
     recognition.onresult = async (event) => {
-      const transcript = event.results[0][0].transcript;
-      setListening(false);
-      setProcessing(true);
-      try {
-        const res = await api('/api/education/qa', {
-          method: 'POST',
-          body: JSON.stringify({ question: transcript, withAudio: true })
-        });
-        if (res.narration && res.narration.audioBase64) {
-          const audio = new Audio(`data:${res.narration.mimeType};base64,${res.narration.audioBase64}`);
-          audio.play();
+      let finalTranscript = '';
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
         }
-      } catch (e) {
-        console.error(e);
       }
-      setProcessing(false);
+      
+      setTranscript(finalTranscript || interimTranscript);
+      
+      if (finalTranscript) {
+        setListening(false);
+        setProcessing(true);
+        try {
+          const res = await api('/api/education/qa', {
+            method: 'POST',
+            body: JSON.stringify({ question: finalTranscript, withAudio: true })
+          });
+          if (res.narration && res.narration.audioBase64) {
+            setTranscript('Playing response...');
+            const audio = new Audio(`data:${res.narration.mimeType};base64,${res.narration.audioBase64}`);
+            audio.play();
+            audio.onended = () => setTranscript('');
+          } else {
+            setTranscript('Done.');
+            setTimeout(() => setTranscript(''), 2000);
+          }
+        } catch (e) {
+          console.error(e);
+          setTranscript('Error processing.');
+          setTimeout(() => setTranscript(''), 2000);
+        }
+        setProcessing(false);
+      }
     };
     
     recognition.onerror = (e) => {
       console.error('Speech error', e);
       setListening(false);
       setProcessing(false);
+      setTranscript('Microphone error.');
+      setTimeout(() => setTranscript(''), 2000);
     };
     
-    recognition.onend = () => setListening(false);
+    recognition.onend = () => {
+      if (listening) setListening(false);
+    };
     
     recognition.start();
   };
 
   return (
-    <div style={{ position: 'fixed', bottom: 24, right: 90, zIndex: 1000 }}>
+    <div style={{ position: 'fixed', bottom: 24, right: 90, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      {transcript && (
+        <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px', boxShadow: 'var(--shadow)', maxWidth: 260, fontSize: 13, lineHeight: 1.4, color: 'var(--text)', whiteSpace: 'pre-wrap', textAlign: 'center', fontFamily: 'Space Grotesk' }}>
+          {transcript}
+        </div>
+      )}
       <button 
         onClick={startListening} 
         disabled={processing}
