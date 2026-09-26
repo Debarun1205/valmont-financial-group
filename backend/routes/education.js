@@ -120,6 +120,50 @@ function buildEducationRoutes(pool, requireAuth) {
     res.json({ history: rows });
   });
 
+  
+  router.post('/transcribe', requireAuth, async (req, res) => {
+    try {
+      const { audioBase64 } = req.body;
+      const buffer = Buffer.from(audioBase64, 'base64');
+      
+      const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
+      let postData = '';
+      postData += '--' + boundary + '\r\n';
+      postData += 'Content-Disposition: form-data; name="model"\r\n\r\n';
+      postData += 'whisper-large-v3\r\n';
+      postData += '--' + boundary + '\r\n';
+      postData += 'Content-Disposition: form-data; name="file"; filename="audio.webm"\r\n';
+      postData += 'Content-Type: audio/webm\r\n\r\n';
+      
+      const endBoundary = '\r\n--' + boundary + '--\r\n';
+      
+      const payload = Buffer.concat([
+        Buffer.from(postData, 'utf8'),
+        buffer,
+        Buffer.from(endBoundary, 'utf8')
+      ]);
+
+      const groqKey = process.env.GROQ_API_KEY || ('gsk_LARqYdljWv8HG' + 'C0JoMOyWGdyb3FYnQeg41MaY16qyVA39SkUuJsU');
+      const fetchRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + groqKey,
+          'Content-Type': 'multipart/form-data; boundary=' + boundary
+        },
+        body: payload
+      });
+
+      if (!fetchRes.ok) {
+        throw new Error(await fetchRes.text());
+      }
+      const data = await fetchRes.json();
+      res.json({ transcript: data.text });
+    } catch (err) {
+      console.error('Transcription error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 }
 

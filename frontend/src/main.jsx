@@ -211,85 +211,89 @@ function VoiceAssistant({ token }) {
   const [listening, setListening] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
   const api = useApi(token, () => {});
 
-  const startListening = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Your browser doesn't support Voice Input. Please use Chrome or Edge.");
+  const toggleListen = async () => {
+    if (listening) {
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+      }
       return;
     }
-    const recognition = new SpeechRecognition();
-    recognition.interimResults = true;
-    recognition.continuous = false;
-    
-    recognition.onstart = () => {
-      setListening(true);
-      setTranscript('Listening...');
-    };
-    
-    recognition.onresult = async (event) => {
-      let finalTranscript = '';
-      let interimTranscript = '';
 
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        } else {
-          interimTranscript += event.results[i][0].transcript;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
-      }
-      
-      setTranscript(finalTranscript || interimTranscript);
-      
-      if (finalTranscript) {
+      };
+
+      mediaRecorder.onstart = () => {
+        setListening(true);
+        setTranscript('Listening... (Click again to stop)');
+      };
+
+      mediaRecorder.onstop = async () => {
         setListening(false);
         setProcessing(true);
-        try {
-          const res = await api('/api/education/qa', {
-            method: 'POST',
-            body: JSON.stringify({ question: finalTranscript, withAudio: true })
-          });
-          if (res.narration && res.narration.audioBase64) {
-            setTranscript('Playing response...');
-            const audio = new Audio(`data:${res.narration.mimeType};base64,${res.narration.audioBase64}`);
-            audio.play();
-            audio.onended = () => setTranscript('');
-          } else {
-            setTranscript('Done.');
+        setTranscript('Transcribing...');
+        stream.getTracks().forEach(track => track.stop());
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64data = reader.result.split(',')[1];
+          try {
+            const tRes = await api('/api/education/transcribe', {
+              method: 'POST',
+              body: JSON.stringify({ audioBase64: base64data })
+            });
+            const text = tRes.transcript;
+            setTranscript(text);
+            
+            if (text && text.trim().length > 0) {
+              setTranscript('AI is thinking...');
+              const res = await api('/api/education/qa', {
+                method: 'POST',
+                body: JSON.stringify({ question: text, withAudio: true })
+              });
+              
+              if (res.narration && res.narration.audioBase64) {
+                setTranscript('Playing response...');
+                const audio = new Audio(`data:${res.narration.mimeType};base64,${res.narration.audioBase64}`);
+                audio.play();
+                audio.onended = () => setTranscript('');
+              } else {
+                setTranscript('Done.');
+                setTimeout(() => setTranscript(''), 2000);
+              }
+            } else {
+              setTranscript('No speech detected.');
+              setTimeout(() => setTranscript(''), 2000);
+            }
+          } catch (e) {
+            console.error(e);
+            setTranscript('Server Error.');
             setTimeout(() => setTranscript(''), 2000);
           }
-        } catch (e) {
-          console.error(e);
-          setTranscript('Error processing.');
-          setTimeout(() => setTranscript(''), 2000);
-        }
-        setProcessing(false);
-      }
-    };
-    
-    recognition.onerror = (e) => {
-      console.error('Speech error', e);
-      setListening(false);
-      setProcessing(false);
-      if (e.error === 'no-speech') {
-        setTranscript('Waiting for speech...');
-        setTimeout(() => setTranscript(''), 2000);
-        return;
-      }
-      if (e.error === 'not-allowed') {
-        setTranscript('Mic blocked! Click the Lock icon in URL bar to Allow.');
-      } else {
-        setTranscript('Mic error: ' + (e.error || 'Unknown.'));
-      }
+          setProcessing(false);
+        };
+      };
+
+      mediaRecorder.start();
+    } catch (e) {
+      setTranscript('Mic blocked! Click the Lock icon in URL bar to Allow.');
       setTimeout(() => setTranscript(''), 4000);
-    };
-    
-    recognition.onend = () => {
-      if (listening) setListening(false);
-    };
-    
-    recognition.start();
+    }
   };
 
   return (
@@ -300,7 +304,7 @@ function VoiceAssistant({ token }) {
         </div>
       )}
       <button 
-        onClick={startListening} 
+        onClick={toggleListen} 
         disabled={processing}
         style={{ 
           background: listening ? 'var(--risk)' : (processing ? 'var(--slate-body)' : 'var(--accent)'), 
@@ -318,7 +322,7 @@ function VoiceAssistant({ token }) {
           transition: 'transform 0.2s' 
         }}
       >
-        {listening ? '👂' : (processing ? '⏳' : '🎙️')}
+        {listening ? '⏹️' : (processing ? '⏳' : '🎙️')}
       </button>
     </div>
   );
