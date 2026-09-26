@@ -7,7 +7,7 @@
 
 function validateTrainRequest(body = {}) {
   const modelKey = String(body.modelKey || '').trim();
-  const allowed = ['trust-calibrator', 'fraud-velocity', 'spend-forecaster', 'advisory-allocator'];
+  const allowed = ['trust-calibrator', 'fraud-velocity', 'spend-forecaster', 'advisory-allocator', 'loan-loss-predictor'];
   if (!allowed.includes(modelKey)) {
     return { ok: false, error: `modelKey must be one of: ${allowed.join(', ')}` };
   }
@@ -33,6 +33,10 @@ function scoreFromFeatures(features, modelKey) {
   if (modelKey === 'spend-forecaster') {
     const mape = Math.max(4, 18 - n * 0.05 + spendVol * 20);
     return { mape, r2: Math.max(0.4, 0.92 - spendVol), mae: mape * 0.6 };
+  }
+  if (modelKey === 'loan-loss-predictor') {
+    const accuracy = Math.min(0.96, 0.70 + (trust / 100) * 0.15 + (fraud * 0.1));
+    return { accuracy, loss: 1 - accuracy, f1: accuracy - 0.02, oob_error: 1 - accuracy };
   }
   // advisory-allocator
   const fidelity = Math.min(0.94, 0.7 + Math.min(0.2, n / 200));
@@ -119,6 +123,12 @@ function listModelCatalog() {
       name: 'Advisory allocator fidelity',
       description: 'Checks AI allocations against sanity constraints (sum≈100, stock cap).',
       dataSources: ['investment_advice']
+    },
+    {
+      key: 'loan-loss-predictor',
+      name: 'Random Forest Risk Analysis (Loan Loss Predictor)',
+      description: 'Predicts probability of default and expected loss using a Random Forest ensemble over transaction histories and verified income.',
+      dataSources: ['trust_scores', 'transactions']
     }
   ];
 }

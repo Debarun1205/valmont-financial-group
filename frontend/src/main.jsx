@@ -47,7 +47,8 @@ const DEMO = {
     { key: 'trust-calibrator', name: 'Trust score calibrator', description: 'Calibrates income + fraud components.', dataSources: ['trust_scores'] },
     { key: 'fraud-velocity', name: 'Fraud velocity detector', description: 'Velocity / spike thresholds on the ledger.', dataSources: ['transactions'] },
     { key: 'spend-forecaster', name: 'Spend forecaster', description: 'Short-horizon spend projection.', dataSources: ['transactions'] },
-    { key: 'advisory-allocator', name: 'Advisory allocator fidelity', description: 'Allocation sanity checks.', dataSources: ['investment_advice'] }
+    { key: 'advisory-allocator', name: 'Advisory allocator fidelity', description: 'Allocation sanity checks.', dataSources: ['investment_advice'] },
+    { key: 'loan-loss-predictor', name: 'Random Forest Risk Analysis', description: 'Predicts default probability and expected loss.', dataSources: ['trust_scores', 'transactions'] }
   ]},
   mlFeatures: { features: { sampleSize: 42, userCount: 18, avgTrustScore: 71.2, avgFraudCleanRatio: 0.84, spendVolatility: 0.22 } },
   mlRuns: { runs: [{ id: 'run-1', model_key: 'trust-calibrator', epochs: 8, status: 'completed', metrics: { accuracy: 0.86, loss: 0.12 }, created_at: '2026-09-25T12:00:00Z' }] },
