@@ -246,7 +246,7 @@ function VoiceAssistant({ token }) {
         setTranscript('Transcribing...');
         stream.getTracks().forEach(track => track.stop());
 
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunksRef.current); const mimeType = audioBlob.type || mediaRecorderRef.current.mimeType;
         
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
@@ -255,7 +255,7 @@ function VoiceAssistant({ token }) {
           try {
             const tRes = await api('/api/education/transcribe', {
               method: 'POST',
-              body: JSON.stringify({ audioBase64: base64data })
+              body: JSON.stringify({ audioBase64: base64data, mimeType })
             });
             const text = tRes.transcript;
             setTranscript(text);
@@ -282,7 +282,7 @@ function VoiceAssistant({ token }) {
             }
           } catch (e) {
             console.error(e);
-            setTranscript('Server Error.');
+            setTranscript('Error: ' + e.message);
             setTimeout(() => setTranscript(''), 2000);
           }
           setProcessing(false);

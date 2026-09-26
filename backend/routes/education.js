@@ -123,7 +123,7 @@ function buildEducationRoutes(pool, requireAuth) {
   
   router.post('/transcribe', requireAuth, async (req, res) => {
     try {
-      const { audioBase64 } = req.body;
+      const { audioBase64, mimeType = 'audio/webm' } = req.body;
       const buffer = Buffer.from(audioBase64, 'base64');
       
       const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
@@ -132,8 +132,8 @@ function buildEducationRoutes(pool, requireAuth) {
       postData += 'Content-Disposition: form-data; name="model"\r\n\r\n';
       postData += 'whisper-large-v3\r\n';
       postData += '--' + boundary + '\r\n';
-      postData += 'Content-Disposition: form-data; name="file"; filename="audio.webm"\r\n';
-      postData += 'Content-Type: audio/webm\r\n\r\n';
+      postData += 'Content-Disposition: form-data; name="file"; filename="audio" + (mimeType.includes('mp4') ? '.m4a' : '.webm') + '"\r\n';
+      postData += 'Content-Type: ' + mimeType + '\r\n\r\n';
       
       const endBoundary = '\r\n--' + boundary + '--\r\n';
       
