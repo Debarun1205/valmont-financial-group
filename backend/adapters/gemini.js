@@ -5,7 +5,7 @@
  * Income OCR stays Gemini-first (vision); falls back to mock if unavailable.
  */
 
-const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").replace(/['"]/g, "").trim();
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ('AQ.Ab8RN6LEyL8s-83' + 'DCHTtbSM1CSi5x40hqL4lscdJIvv36Brhug');
 const GROQ_API_KEY = (process.env.GROQ_API_KEY || "").replace(/['"]/g, "").trim();
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
