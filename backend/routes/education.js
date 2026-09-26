@@ -66,7 +66,12 @@ function buildEducationRoutes(pool, requireAuth) {
        VALUES ($1, $2, $3, $4, $5) RETURNING id, question, answer, language, mocked, created_at`,
       [req.user.id, question, answer, language || 'English', mocked]
     );
-    res.status(201).json({ qa: rows[0], tierContext });
+    let narration = null;
+    if (withAudio) {
+      const { audioBase64, mimeType, mocked: audioMocked } = await narrateText(answer);
+      narration = { audioBase64, mimeType, mocked: audioMocked };
+    }
+    res.status(201).json({ qa: rows[0], narration, tierContext });
   });
 
   router.get('/qa/history', requireAuth, async (req, res) => {

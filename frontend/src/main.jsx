@@ -1218,6 +1218,7 @@ function Chatbot({ token }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([{ text: "Hi, I'm your financial assistant. How can I help?", sender: 'bot' }]);
   const [input, setInput] = useState('');
+  const [speak, setSpeak] = useState(true);
   const api = useApi(token, () => {});
 
   const send = async (e) => {
@@ -1230,10 +1231,15 @@ function Chatbot({ token }) {
     try {
       const res = await api('/api/education/qa', {
         method: 'POST',
-        body: JSON.stringify({ question: msg })
+        body: JSON.stringify({ question: msg, withAudio: speak })
       });
       let answer = res.qa?.answer || 'Sorry, I encountered an error.';
       setMessages(prev => [...prev, { text: answer, sender: 'bot' }]);
+      
+      if (speak && res.narration && res.narration.audioBase64) {
+        const audio = new Audio(`data:${res.narration.mimeType};base64,${res.narration.audioBase64}`);
+        audio.play().catch(e => console.error('Audio play failed:', e));
+      }
     } catch (err) {
       setMessages(prev => [...prev, { text: 'Sorry, I am offline.', sender: 'bot' }]);
     }
@@ -1244,23 +1250,32 @@ function Chatbot({ token }) {
       {open ? (
         <div style={{ width: 320, height: 450, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 12, display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#172029' }}>
-            <strong style={{ fontFamily: 'Space Grotesk', fontSize: 14 }}>AI Companion</strong>
-            <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: 16 }}>✕</button>
+            <strong style={{ fontFamily: 'Space Grotesk', fontSize: 16 }}>AI Companion</strong>
+            <button onClick={() => setOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--slate-headline)', cursor: 'pointer', fontSize: 18 }}>×</button>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          
+          <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--surface)' }}>
             {messages.map((m, i) => (
-              <div key={i} style={{ alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start', background: m.sender === 'user' ? 'var(--teal)' : '#232E3B', color: m.sender === 'user' ? '#000' : 'var(--text)', padding: '10px 14px', borderRadius: 8, maxWidth: '85%', fontSize: 13, lineHeight: 1.4 }}>
+              <div key={i} style={{ alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start', background: m.sender === 'user' ? 'var(--teal)' : 'var(--surface-container)', color: m.sender === 'user' ? '#000' : 'var(--slate-body)', padding: '8px 12px', borderRadius: 8, maxWidth: '85%', fontSize: 13, lineHeight: 1.4 }}>
                 {m.text}
               </div>
             ))}
           </div>
-          <form onSubmit={send} style={{ padding: 12, borderTop: '1px solid var(--border)', display: 'flex', gap: 8, background: 'var(--panel)' }}>
-            <input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask anything..." style={{ flex: 1, padding: '10px 14px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--input)', color: 'var(--text)', fontSize: 13 }} />
-            <button type="submit" className="primary-btn" style={{ padding: '0 16px', borderRadius: 6 }}>Send</button>
-          </form>
+          
+          <div style={{ padding: '8px 12px', background: 'var(--surface-container)', borderTop: '1px solid var(--border-hairline)' }}>
+            <label style={{ fontSize: 11, color: 'var(--slate-body)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', marginBottom: 6 }}>
+              <input type="checkbox" checked={speak} onChange={e => setSpeak(e.target.checked)} /> Auto-Speak Replies (Regional)
+            </label>
+            <form onSubmit={send} style={{ display: 'flex', gap: 8 }}>
+              <input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask anything..." style={{ flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--panel)', color: 'var(--slate-headline)' }} />
+              <button type="submit" style={{ background: 'var(--teal)', color: '#000', border: 'none', padding: '0 12px', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Send</button>
+            </form>
+          </div>
         </div>
       ) : (
-        <button onClick={() => setOpen(true)} style={{ background: 'var(--teal)', color: '#000', border: 'none', borderRadius: '50%', width: 56, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, boxShadow: 'var(--shadow)', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>💬</button>
+        <button onClick={() => setOpen(true)} style={{ width: 56, height: 56, borderRadius: 28, background: 'var(--teal)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </button>
       )}
     </div>
   );
