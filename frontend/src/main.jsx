@@ -272,7 +272,7 @@ function VoiceAssistant({ token }) {
       console.error('Speech error', e);
       setListening(false);
       setProcessing(false);
-      setTranscript('Microphone error.');
+      setTranscript('Mic error: ' + (e.error || 'Unknown. Check permissions.'));
       setTimeout(() => setTranscript(''), 2000);
     };
     
