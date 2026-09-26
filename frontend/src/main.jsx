@@ -148,14 +148,14 @@ function demoResponse(path) {
 
 const NAV = [
   { group: 'Overview', items: [['overview', 'Overview', '⌂']] },
-  { group: 'You', items: [['identity', 'Identity & trust', '◎'], ['wallet', 'Wallet', '◈'], ['invest', 'Investments', '↗'], ['insurance', 'Insurance', '◇'], ['remit', 'Remittances', '⇄'], ['learn', 'Financial learning', '∿'], ['budget', 'Budgeting', '≋']] },
+  { group: 'You', items: [['identity', 'Identity & trust', '◎'], ['wallet', 'Wallet', '◈'], ['invest', 'Investments', '↗'], ['insurance', 'Insurance', '◇'], ['remit', 'Remittances', '⇄'], ['learn', 'Financial learning', '∿'], ['budget', 'Budgeting', '≋'], ['family', 'Family Finance', '👪']] },
   { group: 'Lending', items: [['loans', 'Loan marketplace', '₿'], ['lender', 'Lender dashboard', '▤']] },
   { group: 'Business', items: [['merchant', 'Merchant health', '▦'], ['enterprise', 'Enterprise view', '▥']] },
   { group: 'AI Lab', items: [['ml', 'Model training', '⚙'], ['ds', 'DS applications', 'Σ']] },
 ];
 
 const moduleMeta = {
-  identity: ['Identity & trust', 'One portable score, backed by evidence.', 'teal'], wallet: ['Wallet', 'Fiat, SOL and digital gold in one ledger.', 'violet'], invest: ['Investments', 'Goal-based allocation across six asset classes.', 'gold'], insurance: ['Insurance', 'A trust-score lens for policy pricing.', 'teal'], remit: ['Remittances', 'Quote and send across supported corridors.', 'orange'], learn: ['Financial learning', 'AI-guided education at your pace.', 'blue'], budget: ['Budgeting', 'A simple view of spend, savings and runway.', 'orange'], loans: ['Loan marketplace', 'Borrow and fund from the same trust engine.', 'violet'], lender: ['Lender dashboard', 'Portfolio exposure and borrower risk.', 'teal'], merchant: ['Merchant health', 'Business health from the same signal.', 'gold'], enterprise: ['Enterprise view', 'A workforce lens on financial health.', 'blue'], ml: ['Model training', 'Calibrate trust, fraud and advisory models on live features.', 'violet'], ds: ['DS applications', 'Fraud windows, lenses, spend and portfolio analytics.', 'teal']
+  identity: ['Identity & trust', 'One portable score, backed by evidence.', 'teal'], wallet: ['Wallet', 'Fiat, SOL and digital gold in one ledger.', 'violet'], invest: ['Investments', 'Goal-based allocation across six asset classes.', 'gold'], insurance: ['Insurance', 'A trust-score lens for policy pricing.', 'teal'], remit: ['Remittances', 'Quote and send across supported corridors.', 'orange'], learn: ['Financial learning', 'AI-guided education at your pace.', 'blue'], budget: ['Budgeting', 'A simple view of spend, savings and runway.', 'orange'], family: ['Family Finance', 'Family companion.', 'violet'], loans: ['Loan marketplace', 'Borrow and fund from the same trust engine.', 'violet'], lender: ['Lender dashboard', 'Portfolio exposure and borrower risk.', 'teal'], merchant: ['Merchant health', 'Business health from the same signal.', 'gold'], enterprise: ['Enterprise view', 'A workforce lens on financial health.', 'blue'], ml: ['Model training', 'Calibrate trust, fraud and advisory models on live features.', 'violet'], ds: ['DS applications', 'Fraud windows, lenses, spend and portfolio analytics.', 'teal']
 };
 
 function normalize(data, keys) { if (!data) return null; for (const key of keys) if (data[key] !== undefined) return data[key]; return data; }
@@ -257,7 +257,7 @@ function App() {
     );
   }
 
-  return <div className="app-shell"><Sidebar page={page} setPage={setPage} user={user} /><main className="main-shell"><Topbar user={user} apiOnline={apiOnline} onLogout={logout} /><div className="content-wrap"><PageRouter page={page} token={token} user={user} tierMeta={tierMeta} setPage={setPage} setToast={setToast} /></div></main>{toast && <div className="toast"><span className="status-dot positive" />{toast}</div>}</div>;
+  return <div className="app-shell"><Sidebar page={page} setPage={setPage} user={user} /><main className="main-shell"><Topbar user={user} apiOnline={apiOnline} onLogout={logout} /><div className="content-wrap"><PageRouter page={page} token={token} user={user} tierMeta={tierMeta} setPage={setPage} setToast={setToast} /></div></main>{toast && <div className="toast"><span className="status-dot positive" />{toast}</div>}<Chatbot token={token} /></div>;
 }
 
 function Sidebar({ page, setPage, user }) {
@@ -451,7 +451,7 @@ function OnboardingQuiz({ token, user, onDone, setToast }) {
 }
 
 
-function PageRouter(props) { const map = { overview: Overview, identity: Identity, wallet: Wallet, invest: Invest, insurance: Insurance, remit: Remit, learn: Learn, budget: Budget, loans: Loans, lender: Lender, merchant: Merchant, enterprise: Enterprise, ml: ModelTraining, ds: DsApplications }; const C = map[props.page] || Overview; return <C {...props} />; }
+function PageRouter(props) { const map = { overview: Overview, identity: Identity, wallet: Wallet, invest: Invest, insurance: Insurance, remit: Remit, learn: Learn, budget: Budget, family: FamilyFinance, loans: Loans, lender: Lender, merchant: Merchant, enterprise: Enterprise, ml: ModelTraining, ds: DsApplications }; const C = map[props.page] || Overview; return <C {...props} />; }
 
 function Overview({ token, user, setPage, setToast }) {
   const api = useApi(token, setToast); const [score, setScore] = useState(DEMO_MODE ? DEMO.trust : null); const [balance, setBalance] = useState(DEMO_MODE ? DEMO.balance : null); const [loans, setLoans] = useState(DEMO_MODE ? DEMO.loansMine.loans : null);
@@ -704,5 +704,86 @@ function Merchant({ token, setToast }) {
 }
 
 function Enterprise({ token, setToast }) { const api = useApi(token, setToast), [profile, setProfile] = useState(DEMO_MODE ? DEMO.enterpriseProfile.profile : null), [workforce, setWorkforce] = useState(DEMO_MODE ? DEMO.enterpriseWorkforce.workforce : null), [link, setLink] = useState(null); const load = async () => { const r = await Promise.allSettled([api('/api/enterprise/profile'), api('/api/enterprise/workforce')]); if (r[0].status === 'fulfilled') setProfile(normalize(r[0].value, ['profile'])); if (r[1].status === 'fulfilled') setWorkforce(normalize(r[1].value, ['workforce'])); }; useEffect(() => { if (!DEMO_MODE) load(); }, []); return <><PageHeader eyebrow="BUSINESS / ENTERPRISE" title="Workforce, seen through the same signal." description="Employer profile, employee self-link and a workforce rollup with score distribution and loan exposure." right={<Button variant="secondary" onClick={load}>Refresh workforce</Button>} /><div className="stats-row"><Stat label="Headcount" value={workforce?.headcount ?? '—'} sub="Linked employees" /><Stat label="Scored" value={workforce?.scoredCount ?? '—'} sub="Employees with signal" /><Stat label="Average trust" value={workforce?.avgTrustScore ?? '—'} sub="Same trust engine" /><Stat label="Outstanding" value={workforce?.loanPortfolio?.totalOutstanding != null ? money(workforce.loanPortfolio.totalOutstanding) : '—'} sub="Loan exposure" /></div><Panel title="Organization" kicker="EMPLOYER"><Field label="Organization name"><input id="org" defaultValue={profile?.organization_name || 'Acme Corp'} /></Field><div className="button-row"><Button onClick={async () => { await api('/api/enterprise/profile', { method: 'POST', body: JSON.stringify({ organizationName: document.getElementById('org').value }) }); await load(); }}>Save organization</Button></div></Panel><Panel title="Rating distribution" kicker="WORKFORCE"><div className="lens-grid dense">{Object.entries(workforce?.ratingDistribution || {}).map(([k, v]) => <div className="lens-card" key={k}><div><span className="eyebrow">{k}</span><h3>{v}</h3></div></div>)}</div></Panel><Panel title="Employee self-link" kicker="INDIVIDUAL"><Field label="Organization name"><input id="employeeOrg" defaultValue="Acme Corp" /></Field><Button onClick={async () => setLink(await api('/api/enterprise/employee-link', { method: 'POST', body: JSON.stringify({ organizationName: document.getElementById('employeeOrg').value }) }))}>Link me to organization</Button><JsonOutput data={link} /></Panel></>; }
+
+function FamilyFinance({ token, setToast }) {
+  const [members, setMembers] = useState([{ name: 'Spouse', balance: 1200 }, { name: 'Child (Teen)', balance: 150 }]);
+  const [sharedGoal, setSharedGoal] = useState(5000);
+  const [saved, setSaved] = useState(1200);
+
+  return (
+    <>
+      <PageHeader eyebrow="YOU / FAMILY" title="Family Finance Companion" description="Manage shared goals, view family balances, and allocate allowances." />
+      <div className="stats-row">
+        <Stat label="Total Family Balance" value={money(members.reduce((a, b) => a + b.balance, 0))} sub="Across accounts" />
+        <Stat label="Shared Goal" value={money(sharedGoal)} sub="Family Vacation" />
+        <Stat label="Goal Progress" value={pct((saved / sharedGoal) * 100)} sub={money(saved) + ' saved'} />
+      </div>
+      <Panel title="Family Members" kicker="ACCOUNTS">
+        <div className="list-stack">
+          {members.map((m, i) => (
+            <div className="list-row" key={i}>
+              <div>
+                <strong>{m.name}</strong>
+                <small>Linked account</small>
+              </div>
+              <strong style={{ fontFamily: 'Space Grotesk' }}>{money(m.balance)}</strong>
+            </div>
+          ))}
+        </div>
+      </Panel>
+    </>
+  );
+}
+
+function Chatbot({ token }) {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([{ text: "Hi, I'm your financial assistant. How can I help?", sender: 'bot' }]);
+  const [input, setInput] = useState('');
+  const api = useApi(token, () => {});
+
+  const send = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    const msg = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { text: msg, sender: 'user' }]);
+    
+    try {
+      const res = await api('/api/education/qa', {
+        method: 'POST',
+        body: JSON.stringify({ question: msg })
+      });
+      setMessages(prev => [...prev, { text: res.qa?.answer || 'Sorry, I encountered an error.', sender: 'bot' }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { text: 'Sorry, I am offline.', sender: 'bot' }]);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', bottom: 24, right: open ? 24 : 80, zIndex: 1000 }}>
+      {open ? (
+        <div style={{ width: 320, height: 450, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 12, display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#172029' }}>
+            <strong style={{ fontFamily: 'Space Grotesk', fontSize: 14 }}>AI Companion</strong>
+            <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: 16 }}>✕</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {messages.map((m, i) => (
+              <div key={i} style={{ alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start', background: m.sender === 'user' ? 'var(--teal)' : '#232E3B', color: m.sender === 'user' ? '#000' : 'var(--text)', padding: '10px 14px', borderRadius: 8, maxWidth: '85%', fontSize: 13, lineHeight: 1.4 }}>
+                {m.text}
+              </div>
+            ))}
+          </div>
+          <form onSubmit={send} style={{ padding: 12, borderTop: '1px solid var(--border)', display: 'flex', gap: 8, background: 'var(--panel)' }}>
+            <input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask anything..." style={{ flex: 1, padding: '10px 14px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--input)', color: 'var(--text)', fontSize: 13 }} />
+            <button type="submit" className="primary-btn" style={{ padding: '0 16px', borderRadius: 6 }}>Send</button>
+          </form>
+        </div>
+      ) : (
+        <button onClick={() => setOpen(true)} style={{ background: 'var(--teal)', color: '#000', border: 'none', borderRadius: '50%', width: 56, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, boxShadow: 'var(--shadow)', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>💬</button>
+      )}
+    </div>
+  );
+}
 
 createRoot(document.getElementById('root')).render(<App />);
