@@ -461,6 +461,44 @@ function Overview({ token, user, setPage, setToast }) {
   return <><PageHeader eyebrow="OVERVIEW / PERSONAL" title={`Good to see you${user?.email ? `, ${user.email.split('@')[0]}` : ''}.`} description="Your financial picture, condensed into the signals that matter." right={<Button variant="secondary" onClick={refresh}>Refresh data</Button>} /><div className="overview-grid"><Panel title="Trust score" kicker="CORE SIGNAL" className="score-panel"><div className="score-layout"><div className="big-score"><strong>{scoreValue || '—'}</strong><span>/ 100</span></div><div><StatusPill>On-chain attested</StatusPill><p className="muted">The same score can be read by you, a lender, an insurer or a business — each through its own lens.</p><button type="button" className="text-btn" onClick={() => setPage('identity')}>Review evidence →</button></div></div><div className="meter"><span style={{ width: `${Math.min(100, scoreValue)}%` }} /></div></Panel><Panel title="Wallet" kicker="LIQUIDITY"><div className="money">{money(balance?.balance)}</div><div className="split-row"><span>Available</span><span>Vault {money(balance?.savingsVaultBalance)}</span></div><button type="button" className="text-btn" onClick={() => setPage('wallet')}>Open wallet →</button></Panel></div><div className="stats-row"><Stat label="Trust signal" value={scoreValue || '—'} sub="Shared core score" /><Stat label="Wallet asset" value="USD" sub="Primary ledger" /><Stat label="Loans" value={Array.isArray(loans) ? loans.length : '—'} sub="Current requests" /><Stat label="Network" value="Solana" sub="Devnet attestation" tone="teal" /></div><div className="section-title"><span className="eyebrow">ONE ENGINE · MANY LENSES</span><h2>Choose a view.</h2></div><div className="lens-grid dense">{[['identity', 'Your identity', 'Trust score + evidence'], ['loans', 'Borrow', 'Request or fund'], ['invest', 'Grow', 'Six-bucket allocation'], ['insurance', 'Protect', 'Score-linked cover'], ['merchant', 'Operate', 'Business health'], ['enterprise', 'Workforce', 'Org-level signal']].map(([id, t, s]) => <button type="button" key={id} className="lens-card" onClick={() => setPage(id)}><span className={`accent ${moduleMeta[id][2]}`} /><div><span className="eyebrow">{t}</span><h3>{s}</h3></div><span className="arrow">↗</span></button>)}</div></>;
 }
 
+function TrustScoreCard({ data }) {
+  if (!data) return null;
+  const ts = data.trustScore || data;
+  if (!ts) return null;
+  const ev = ts.evidence || {};
+  return (
+    <div className="answer-card" style={{ marginTop: '16px', background: 'var(--surface-container)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-hairline)' }}>
+      <h3 style={{ marginBottom: '16px', color: 'var(--slate-headline)', fontSize: '1.1rem' }}>Score Details</h3>
+      <div className="list-stack">
+        <div className="list-row">
+          <div><strong>Total Score</strong><small>Out of 100</small></div>
+          <strong style={{ fontFamily: 'Space Grotesk' }}>{ts.score || 0}</strong>
+        </div>
+        <div className="list-row">
+          <div><strong>Income Component</strong><small>Verified flow</small></div>
+          <strong style={{ fontFamily: 'Space Grotesk' }}>{Number(ts.income_component || 0).toFixed(1)}</strong>
+        </div>
+        <div className="list-row">
+          <div><strong>Fraud Component</strong><small>Transaction history</small></div>
+          <strong style={{ fontFamily: 'Space Grotesk' }}>{Number(ts.fraud_component || 0).toFixed(1)}</strong>
+        </div>
+        {(ev.startingLoanCapUsd || data.startingLoanCapUsd) ? (
+          <div className="list-row">
+            <div><strong>Starting Loan Cap</strong><small>Approved limit</small></div>
+            <strong style={{ fontFamily: 'Space Grotesk' }}>{money(ev.startingLoanCapUsd || data.startingLoanCapUsd)}</strong>
+          </div>
+        ) : null}
+        {ev.attestationHash && (
+          <div className="list-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+            <div><strong>Solana Attestation</strong><small style={{ marginLeft: '8px', color: 'var(--slate-body)' }}>On-chain proof</small></div>
+            <small style={{ color: 'var(--teal)', wordBreak: 'break-all', fontFamily: 'Space Grotesk', background: '#0a1017', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-hairline)' }}>{ev.attestationHash}</small>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Identity({ token, setToast }) {
   const api = useApi(token, setToast), [file, setFile] = useState(null), [data, setData] = useState({}), [score, setScore] = useState(null);
   const load = async () => { const [s, p] = await Promise.allSettled([api('/api/trust-score/' + (DEMO_MODE ? DEMO_USER.id : JSON.parse(localStorage.getItem('valmont_user') || '{}').id)), api('/api/student/profile')]); if (s.status === 'fulfilled') setScore(normalize(s.value, ['trustScore'])); if (p.status === 'fulfilled') setData(d => ({ ...d, profile: normalize(p.value, ['profile']) })); };
@@ -468,7 +506,7 @@ function Identity({ token, setToast }) {
   const upload = async () => { if (!file) return setToast('Choose an income image first'); const f = new FormData(); f.append('document', file); await api('/api/trust-score/verify-income', { method: 'POST', body: f }); setToast('Success! Income verified.'); };
   const compute = async () => { const r = await api('/api/trust-score/compute', { method: 'POST' }); setScore(normalize(r, ['trustScore'])); setData(d => ({ ...d, score: r })); };
   const student = async () => { const r = await api('/api/student/compute-score', { method: 'POST' }); setData(d => ({ ...d, student: r })); };
-  return <><PageHeader eyebrow="YOU / IDENTITY" title="Identity & trust" description="Build a portable financial signal from verified income, transaction behavior and an on-chain attestation." right={<Button variant="secondary" onClick={load}>Refresh identity</Button>} /><div className="two-col"><Panel title="Evidence" kicker="INCOME VERIFICATION"><Field label="Income document"><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0])} /></Field><Button onClick={upload}>Verify income</Button></Panel><Panel title="Trust score" kicker="ATTESTATION"><div className="metric-callout"><strong>{score?.score ?? '—'}</strong><span>current score</span></div><Button onClick={compute}>Compute + attest on Solana</Button><JsonOutput data={data.score} /></Panel></div><Panel title="Student starter identity" kicker="ALTERNATE ENTRY PATH"><div className="form-grid"><Field label="School"><input id="school" defaultValue={data.profile?.school_name || 'State University'} /></Field><Field label="Graduation year"><input id="grad" type="number" defaultValue={data.profile?.expected_grad_year || 2028} /></Field><Field label="Monthly allowance"><input id="allowance" type="number" defaultValue={data.profile?.monthly_allowance || 300} /></Field></div><Button onClick={async () => { await api('/api/student/profile', { method: 'POST', body: JSON.stringify({ schoolName: document.getElementById('school').value, expectedGradYear: Number(document.getElementById('grad').value), monthlyAllowance: Number(document.getElementById('allowance').value) }) }); await student(); }}>Save profile + compute</Button><JsonOutput data={data.student} /></Panel></>;
+  return <><PageHeader eyebrow="YOU / IDENTITY" title="Identity & trust" description="Build a portable financial signal from verified income, transaction behavior and an on-chain attestation." right={<Button variant="secondary" onClick={load}>Refresh identity</Button>} /><div className="two-col"><Panel title="Evidence" kicker="INCOME VERIFICATION"><Field label="Income document"><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0])} /></Field><Button onClick={upload}>Verify income</Button></Panel><Panel title="Trust score" kicker="ATTESTATION"><div className="metric-callout"><strong>{score?.score ?? '—'}</strong><span>current score</span></div><Button onClick={compute}>Compute + attest on Solana</Button><TrustScoreCard data={data.score} /></Panel></div><Panel title="Student starter identity" kicker="ALTERNATE ENTRY PATH"><div className="form-grid"><Field label="School"><input id="school" defaultValue={data.profile?.school_name || 'State University'} /></Field><Field label="Graduation year"><input id="grad" type="number" defaultValue={data.profile?.expected_grad_year || 2028} /></Field><Field label="Monthly allowance"><input id="allowance" type="number" defaultValue={data.profile?.monthly_allowance || 300} /></Field></div><Button onClick={async () => { await api('/api/student/profile', { method: 'POST', body: JSON.stringify({ schoolName: document.getElementById('school').value, expectedGradYear: Number(document.getElementById('grad').value), monthlyAllowance: Number(document.getElementById('allowance').value) }) }); await student(); }}>Save profile + compute</Button><TrustScoreCard data={data.student} /></Panel></>;
 }
 
 function Wallet({ token, setToast }) {
