@@ -464,10 +464,10 @@ function Identity({ token, setToast }) {
   const api = useApi(token, setToast), [file, setFile] = useState(null), [data, setData] = useState({}), [score, setScore] = useState(null);
   const load = async () => { const [s, p] = await Promise.allSettled([api('/api/trust-score/' + (DEMO_MODE ? DEMO_USER.id : JSON.parse(localStorage.getItem('valmont_user') || '{}').id)), api('/api/student/profile')]); if (s.status === 'fulfilled') setScore(normalize(s.value, ['trustScore'])); if (p.status === 'fulfilled') setData(d => ({ ...d, profile: normalize(p.value, ['profile']) })); };
   useEffect(() => { load(); }, []);
-  const upload = async () => { if (!file) return setToast('Choose an income image first'); const f = new FormData(); f.append('document', file); const r = await api('/api/trust-score/verify-income', { method: 'POST', body: f }); setData(d => ({ ...d, income: r })); };
+  const upload = async () => { if (!file) return setToast('Choose an income image first'); const f = new FormData(); f.append('document', file); await api('/api/trust-score/verify-income', { method: 'POST', body: f }); setToast('Success! Income verified.'); };
   const compute = async () => { const r = await api('/api/trust-score/compute', { method: 'POST' }); setScore(normalize(r, ['trustScore'])); setData(d => ({ ...d, score: r })); };
   const student = async () => { const r = await api('/api/student/compute-score', { method: 'POST' }); setData(d => ({ ...d, student: r })); };
-  return <><PageHeader eyebrow="YOU / IDENTITY" title="Identity & trust" description="Build a portable financial signal from verified income, transaction behavior and an on-chain attestation." right={<Button variant="secondary" onClick={load}>Refresh identity</Button>} /><div className="two-col"><Panel title="Evidence" kicker="INCOME VERIFICATION"><Field label="Income document"><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0])} /></Field><Button onClick={upload}>Verify income</Button><JsonOutput data={data.income} /></Panel><Panel title="Trust score" kicker="ATTESTATION"><div className="metric-callout"><strong>{score?.score ?? '—'}</strong><span>current score</span></div><Button onClick={compute}>Compute + attest on Solana</Button><JsonOutput data={data.score} /></Panel></div><Panel title="Student starter identity" kicker="ALTERNATE ENTRY PATH"><div className="form-grid"><Field label="School"><input id="school" defaultValue={data.profile?.school_name || 'State University'} /></Field><Field label="Graduation year"><input id="grad" type="number" defaultValue={data.profile?.expected_grad_year || 2028} /></Field><Field label="Monthly allowance"><input id="allowance" type="number" defaultValue={data.profile?.monthly_allowance || 300} /></Field></div><Button onClick={async () => { await api('/api/student/profile', { method: 'POST', body: JSON.stringify({ schoolName: document.getElementById('school').value, expectedGradYear: Number(document.getElementById('grad').value), monthlyAllowance: Number(document.getElementById('allowance').value) }) }); await student(); }}>Save profile + compute</Button><JsonOutput data={data.student} /></Panel></>;
+  return <><PageHeader eyebrow="YOU / IDENTITY" title="Identity & trust" description="Build a portable financial signal from verified income, transaction behavior and an on-chain attestation." right={<Button variant="secondary" onClick={load}>Refresh identity</Button>} /><div className="two-col"><Panel title="Evidence" kicker="INCOME VERIFICATION"><Field label="Income document"><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0])} /></Field><Button onClick={upload}>Verify income</Button></Panel><Panel title="Trust score" kicker="ATTESTATION"><div className="metric-callout"><strong>{score?.score ?? '—'}</strong><span>current score</span></div><Button onClick={compute}>Compute + attest on Solana</Button><JsonOutput data={data.score} /></Panel></div><Panel title="Student starter identity" kicker="ALTERNATE ENTRY PATH"><div className="form-grid"><Field label="School"><input id="school" defaultValue={data.profile?.school_name || 'State University'} /></Field><Field label="Graduation year"><input id="grad" type="number" defaultValue={data.profile?.expected_grad_year || 2028} /></Field><Field label="Monthly allowance"><input id="allowance" type="number" defaultValue={data.profile?.monthly_allowance || 300} /></Field></div><Button onClick={async () => { await api('/api/student/profile', { method: 'POST', body: JSON.stringify({ schoolName: document.getElementById('school').value, expectedGradYear: Number(document.getElementById('grad').value), monthlyAllowance: Number(document.getElementById('allowance').value) }) }); await student(); }}>Save profile + compute</Button><JsonOutput data={data.student} /></Panel></>;
 }
 
 function Wallet({ token, setToast }) {
@@ -570,13 +570,137 @@ function DsApplications({ token, setToast }) {
 }
 
 
-function Budget({ token, setToast }) { const api = useApi(token, setToast), [goal, setGoal] = useState(DEMO_MODE ? DEMO.budgetGoal : null), [nudge, setNudge] = useState(DEMO_MODE ? DEMO.budgetNudge : null), [trend, setTrend] = useState(DEMO_MODE ? DEMO.spendTrend : null); const load = async () => { const r = await Promise.allSettled([api('/api/budget/goal'), api('/api/budget/nudge'), api('/api/budget/spend-trend?weeks=4')]); if (r[0].status === 'fulfilled') setGoal(r[0].value); if (r[1].status === 'fulfilled') setNudge(r[1].value); if (r[2].status === 'fulfilled') setTrend(r[2].value); }; useEffect(() => { load(); }, []); const target = goal?.goal?.target_savings_pct ?? goal?.defaultTargetSavingsPct ?? 20; return <><PageHeader eyebrow="YOU / BUDGETING" title="Know where the month is going." description="Rules-based nudges from verified income and the same Timescale transaction history used for fraud signals." /><div className="stats-row"><Stat label="Target" value={`${target}%`} sub="Savings goal" /><Stat label="Projected" value={nudge ? `${Number(nudge.projectedSavingsPct).toFixed(1)}%` : '—'} sub="Current savings rate" /><Stat label="Status" value={nudge?.status || '—'} sub="Rules-based signal" /><Stat label="30d spend" value={nudge?.monthlySpend != null ? money(nudge.monthlySpend) : '—'} sub="Wallet outflow" /></div><Panel title="Savings goal" kicker="SET A TARGET"><div className="form-grid"><Field label="Target savings %"><input id="target" type="number" defaultValue={target} /></Field></div><div className="button-row"><Button onClick={async () => { setGoal(await api('/api/budget/goal', { method: 'POST', body: JSON.stringify({ targetSavingsPct: Number(document.getElementById('target').value) }) })); }}>Save goal</Button><Button variant="secondary" onClick={async () => setNudge(await api('/api/budget/nudge'))}>Get nudge</Button><Button variant="secondary" onClick={async () => setTrend(await api('/api/budget/spend-trend?weeks=4'))}>View trend</Button></div><JsonOutput data={nudge || goal || trend} /></Panel>{trend?.trend && <Panel title="Weekly spend" kicker="TIMESCALE WINDOW"><TrendList items={trend.trend} valueKey="spend" /></Panel>}</>; }
+function Budget({ token, setToast }) { 
+  const api = useApi(token, setToast); 
+  const [goal, setGoal] = useState(DEMO_MODE ? DEMO.budgetGoal : null); 
+  const [nudge, setNudge] = useState(DEMO_MODE ? DEMO.budgetNudge : null); 
+  const [trend, setTrend] = useState(DEMO_MODE ? DEMO.spendTrend : null); 
+  const [out, setOut] = useState({});
+
+  const load = async () => { 
+    const r = await Promise.allSettled([
+      api('/api/budget/goal'), 
+      api('/api/budget/nudge'), 
+      api('/api/budget/spend-trend?weeks=4')
+    ]); 
+    if (r[0].status === 'fulfilled') setGoal(r[0].value); 
+    if (r[1].status === 'fulfilled') setNudge(r[1].value); 
+    if (r[2].status === 'fulfilled') setTrend(r[2].value); 
+  }; 
+  
+  useEffect(() => { load(); }, []); 
+
+  const target = goal?.goal?.target_savings_pct ?? goal?.defaultTargetSavingsPct ?? 20; 
+  
+  const saveGoal = async () => {
+    const res = await api('/api/budget/goal', { method: 'POST', body: JSON.stringify({ targetSavingsPct: Number(document.getElementById('target').value) }) });
+    setGoal(res);
+    setOut({ saveGoal: res });
+    await load();
+  };
+
+  const getNudge = async () => {
+    const res = await api('/api/budget/nudge');
+    setNudge(res);
+    setOut({ nudge: res });
+  };
+
+  const viewTrend = async () => {
+    const res = await api('/api/budget/spend-trend?weeks=4');
+    setTrend(res);
+    setOut({ trend: res });
+  };
+
+  return <>
+    <PageHeader eyebrow="YOU / BUDGETING" title="Know where the month is going." description="Rules-based nudges from verified income and the same Timescale transaction history used for fraud signals." />
+    <div className="stats-row">
+      <Stat label="Target" value={`${target}%`} sub="Savings goal" />
+      <Stat label="Projected" value={nudge ? `${Number(nudge.projectedSavingsPct).toFixed(1)}%` : '—'} sub="Current savings rate" />
+      <Stat label="Status" value={nudge?.status || '—'} sub="Rules-based signal" />
+      <Stat label="30d spend" value={nudge?.monthlySpend != null ? money(nudge.monthlySpend) : '—'} sub="Wallet outflow" />
+    </div>
+    <Panel title="Savings goal" kicker="SET A TARGET">
+      <div className="form-grid">
+        <Field label="Target savings %"><input id="target" type="number" defaultValue={target} /></Field>
+      </div>
+      <div className="button-row">
+        <Button onClick={saveGoal}>Save goal</Button>
+        <Button variant="secondary" onClick={getNudge}>Get nudge</Button>
+        <Button variant="secondary" onClick={viewTrend}>View trend</Button>
+      </div>
+      <JsonOutput data={Object.keys(out).length > 0 ? out : nudge || goal || trend} />
+    </Panel>
+    {trend?.trend && <Panel title="Weekly spend" kicker="TIMESCALE WINDOW"><TrendList items={trend.trend} valueKey="spend" /></Panel>}
+  </>; 
+}
 
 function Loans({ token, setToast, user }) { const api = useApi(token, setToast), [data, setData] = useState({}), [mine, setMine] = useState([]), [market, setMarket] = useState([]); const load = async () => { const r = await Promise.allSettled([api('/api/loans/mine'), user?.role === 'lender' ? api('/api/loans/marketplace') : Promise.reject()]); if (r[0].status === 'fulfilled') setMine(normalize(r[0].value, ['loans']) || []); if (r[1].status === 'fulfilled') setMarket(normalize(r[1].value, ['pendingLoans']) || []); }; useEffect(() => { load(); }, [user?.role]); const request = async () => { const __r = await api('/api/loans/request', { method: 'POST', body: JSON.stringify({ amount: Number(document.getElementById('loanAmt').value), termMonths: Number(document.getElementById('loanTerm').value) }) }); setData(d => ({ ...d, request: __r })); }; const detail = async id => { const __r = await api(`/api/loans/${id}`); setData(d => ({ ...d, detail: __r })); }; const repay = async id => { const __r = await api(`/api/loans/${id}/repay`, { method: 'POST', body: JSON.stringify({ amount: 100 }) }); setData(d => ({ ...d, repay: __r })); }; const fund = async id => { const __r = await api(`/api/loans/${id}/fund`, { method: 'POST' }); setData(d => ({ ...d, fund: __r })); }; return <><PageHeader eyebrow="LENDING / MARKETPLACE" title="Borrow or fund." description="Loan eligibility and pricing reuse the latest trust score; repayment behavior feeds back into the transaction signal." /><div className="two-col"><Panel title="Request a loan" kicker="BORROWER"><div className="form-grid"><Field label="Amount"><input id="loanAmt" type="number" defaultValue="300" /></Field><Field label="Term (months)"><input id="loanTerm" type="number" defaultValue="6" /></Field></div><Button onClick={request}>Request loan</Button><JsonOutput data={data.request} /></Panel><Panel title="My loans" kicker="BORROWER"><div className="list-stack">{mine.map(l => <div className="list-row" key={l.id}><div><strong>{money(l.principal || l.requested_amount)} · {l.status}</strong><small>{l.id}</small></div><div className="button-row compact"><Button variant="secondary" onClick={() => detail(l.id)}>Detail</Button>{l.status === 'funded' && <Button variant="secondary" onClick={() => repay(l.id)}>Repay</Button>}</div></div>)}</div><JsonOutput data={data.detail || data.repay} /></Panel></div>{user?.role === 'lender' && <Panel title="Pending marketplace" kicker="LENDER ROLE"><div className="list-stack">{market.map(l => <div className="list-row" key={l.id}><div><strong>{money(l.principal || l.requested_amount)}</strong><small>{l.term_months} mo · {l.rate_pct}%</small></div><Button onClick={() => fund(l.id)}>Fund loan</Button></div>)}</div><JsonOutput data={data.fund} /></Panel>}</>; }
 
 function Lender({ token, setToast }) { const api = useApi(token, setToast), [portfolio, setPortfolio] = useState(DEMO_MODE ? DEMO.lenderPortfolio.portfolio : null), [risk, setRisk] = useState(null); const load = async () => setPortfolio(normalize(await api('/api/lender/portfolio'), ['portfolio'])); useEffect(() => { load(); }, []); return <><PageHeader eyebrow="LENDING / LENDER" title="Portfolio risk, not another score." description="The lender lens translates the shared trust score into expected-loss exposure and portfolio analytics." right={<Button variant="secondary" onClick={load}>Refresh portfolio</Button>} /><div className="stats-row"><Stat label="Portfolio" value={money(portfolio?.totalFunded)} sub="Funded principal" /><Stat label="Outstanding" value={money(portfolio?.totalOutstanding ?? portfolio?.outstanding)} sub="Current exposure" /><Stat label="Expected loss" value={portfolio?.weightedAvgExpectedLossPct != null ? pct(portfolio.weightedAvgExpectedLossPct) : '—'} sub="Weighted average" /><Stat label="Loans" value={portfolio?.loanCount ?? 0} sub="Across statuses" /></div><Panel title="Borrower risk view" kicker="LOOK UP A BORROWER"><Field label="Borrower user ID"><input id="borrower" placeholder="user id" /></Field><Button onClick={async () => setRisk(await api(`/api/lender/risk/${document.getElementById('borrower').value}`))}>View risk</Button><JsonOutput data={risk} /></Panel><Panel title="Status distribution" kicker="PORTFOLIO"><div className="lens-grid dense">{Object.entries(portfolio?.countByStatus || {}).map(([k, v]) => <div className="lens-card" key={k}><div><span className="eyebrow">{k}</span><h3>{v}</h3></div></div>)}</div></Panel></>; }
 
-function Merchant({ token, setToast }) { const api = useApi(token, setToast), [profile, setProfile] = useState(DEMO_MODE ? DEMO.merchantProfile.profile : null), [health, setHealth] = useState(DEMO_MODE ? DEMO.merchantHealth.businessHealth : null), [trend, setTrend] = useState(DEMO_MODE ? DEMO.revenueTrend.weeklyRevenueTrend : []); const load = async () => { const r = await Promise.allSettled([api('/api/merchant/profile'), api('/api/merchant/health'), api('/api/merchant/revenue-trend?weeks=4')]); if (r[0].status === 'fulfilled') setProfile(normalize(r[0].value, ['profile'])); if (r[1].status === 'fulfilled') setHealth(normalize(r[1].value, ['businessHealth'])); if (r[2].status === 'fulfilled') setTrend(normalize(r[2].value, ['weeklyRevenueTrend']) || []); }; useEffect(() => { if (!DEMO_MODE) load(); }, []); return <><PageHeader eyebrow="BUSINESS / MERCHANT" title="A business-health lens on the same engine." description="Revenue trend + trust signal become a compact operating view for a merchant." /><div className="stats-row"><Stat label="Health" value={health?.ratingLabel || '—'} sub="Shared-score lens" /><Stat label="Revenue" value={health?.monthlyRevenue != null ? money(health.monthlyRevenue) : '—'} sub="Trailing 30d" /><Stat label="Credit line" value={health?.recommendedCreditLineUsd != null ? money(health.recommendedCreditLineUsd) : '—'} sub="Explainable recommendation" /><Stat label="Category" value={profile?.category || '—'} sub={profile?.business_name || 'Business'} /></div><Panel title="Business profile" kicker="SELF-DECLARED"><div className="form-grid"><Field label="Business name"><input id="biz" defaultValue={profile?.business_name || 'Corner Store'} /></Field><Field label="Category"><select id="cat"><option>retail</option><option>food</option><option>services</option><option>other</option></select></Field></div><div className="button-row"><Button onClick={async () => { await api('/api/merchant/profile', { method: 'POST', body: JSON.stringify({ businessName: document.getElementById('biz').value, category: document.getElementById('cat').value }) }); await load(); }}>Save profile</Button><Button variant="secondary" onClick={load}>Refresh health</Button></div></Panel><Panel title="Revenue trend" kicker="TIMESCALE INBOUND"><TrendList items={trend} valueKey="revenue" /></Panel></>; }
+function Merchant({ token, setToast }) { 
+  const api = useApi(token, setToast);
+  const [profile, setProfile] = useState(DEMO_MODE ? DEMO.merchantProfile.profile : null);
+  const [health, setHealth] = useState(DEMO_MODE ? DEMO.merchantHealth.businessHealth : null);
+  const [trend, setTrend] = useState(DEMO_MODE ? DEMO.revenueTrend.weeklyRevenueTrend : []);
+  const [out, setOut] = useState({});
+
+  const load = async () => { 
+    const r = await Promise.allSettled([
+      api('/api/merchant/profile'), 
+      api('/api/merchant/health'), 
+      api('/api/merchant/revenue-trend?weeks=4')
+    ]); 
+    if (r[0].status === 'fulfilled') setProfile(normalize(r[0].value, ['profile'])); 
+    if (r[1].status === 'fulfilled') setHealth(normalize(r[1].value, ['businessHealth'])); 
+    if (r[2].status === 'fulfilled') setTrend(normalize(r[2].value, ['weeklyRevenueTrend']) || []); 
+  }; 
+  
+  useEffect(() => { if (!DEMO_MODE) load(); }, []); 
+
+  const saveProfile = async () => {
+    const res = await api('/api/merchant/profile', { method: 'POST', body: JSON.stringify({ businessName: document.getElementById('biz').value, category: document.getElementById('cat').value }) });
+    setProfile(res?.profile || res);
+    setOut({ saveProfile: res });
+    await load();
+  };
+
+  const refreshHealth = async () => {
+    const res = await api('/api/merchant/health');
+    setHealth(normalize(res, ['businessHealth']));
+    setOut({ refreshHealth: res });
+    await load();
+  };
+
+  return <>
+    <PageHeader eyebrow="BUSINESS / MERCHANT" title="A business-health lens on the same engine." description="Revenue trend + trust signal become a compact operating view for a merchant." />
+    <div className="stats-row">
+      <Stat label="Health" value={health?.ratingLabel || '—'} sub="Shared-score lens" />
+      <Stat label="Revenue" value={health?.monthlyRevenue != null ? money(health.monthlyRevenue) : '—'} sub="Trailing 30d" />
+      <Stat label="Credit line" value={health?.recommendedCreditLineUsd != null ? money(health.recommendedCreditLineUsd) : '—'} sub="Explainable recommendation" />
+      <Stat label="Category" value={profile?.category || '—'} sub={profile?.business_name || 'Business'} />
+    </div>
+    <Panel title="Business profile" kicker="SELF-DECLARED">
+      <div className="form-grid">
+        <Field label="Business name"><input id="biz" defaultValue={profile?.business_name || 'Corner Store'} /></Field>
+        <Field label="Category">
+          <select id="cat">
+            <option>retail</option>
+            <option>food</option>
+            <option>services</option>
+            <option>other</option>
+          </select>
+        </Field>
+      </div>
+      <div className="button-row">
+        <Button onClick={saveProfile}>Save profile</Button>
+        <Button variant="secondary" onClick={refreshHealth}>Refresh health</Button>
+      </div>
+      <JsonOutput data={Object.keys(out).length > 0 ? out : profile || health || trend} />
+    </Panel>
+    <Panel title="Revenue trend" kicker="TIMESCALE INBOUND"><TrendList items={trend} valueKey="revenue" /></Panel>
+  </>; 
+}
 
 function Enterprise({ token, setToast }) { const api = useApi(token, setToast), [profile, setProfile] = useState(DEMO_MODE ? DEMO.enterpriseProfile.profile : null), [workforce, setWorkforce] = useState(DEMO_MODE ? DEMO.enterpriseWorkforce.workforce : null), [link, setLink] = useState(null); const load = async () => { const r = await Promise.allSettled([api('/api/enterprise/profile'), api('/api/enterprise/workforce')]); if (r[0].status === 'fulfilled') setProfile(normalize(r[0].value, ['profile'])); if (r[1].status === 'fulfilled') setWorkforce(normalize(r[1].value, ['workforce'])); }; useEffect(() => { if (!DEMO_MODE) load(); }, []); return <><PageHeader eyebrow="BUSINESS / ENTERPRISE" title="Workforce, seen through the same signal." description="Employer profile, employee self-link and a workforce rollup with score distribution and loan exposure." right={<Button variant="secondary" onClick={load}>Refresh workforce</Button>} /><div className="stats-row"><Stat label="Headcount" value={workforce?.headcount ?? '—'} sub="Linked employees" /><Stat label="Scored" value={workforce?.scoredCount ?? '—'} sub="Employees with signal" /><Stat label="Average trust" value={workforce?.avgTrustScore ?? '—'} sub="Same trust engine" /><Stat label="Outstanding" value={workforce?.loanPortfolio?.totalOutstanding != null ? money(workforce.loanPortfolio.totalOutstanding) : '—'} sub="Loan exposure" /></div><Panel title="Organization" kicker="EMPLOYER"><Field label="Organization name"><input id="org" defaultValue={profile?.organization_name || 'Acme Corp'} /></Field><div className="button-row"><Button onClick={async () => { await api('/api/enterprise/profile', { method: 'POST', body: JSON.stringify({ organizationName: document.getElementById('org').value }) }); await load(); }}>Save organization</Button></div></Panel><Panel title="Rating distribution" kicker="WORKFORCE"><div className="lens-grid dense">{Object.entries(workforce?.ratingDistribution || {}).map(([k, v]) => <div className="lens-card" key={k}><div><span className="eyebrow">{k}</span><h3>{v}</h3></div></div>)}</div></Panel><Panel title="Employee self-link" kicker="INDIVIDUAL"><Field label="Organization name"><input id="employeeOrg" defaultValue="Acme Corp" /></Field><Button onClick={async () => setLink(await api('/api/enterprise/employee-link', { method: 'POST', body: JSON.stringify({ organizationName: document.getElementById('employeeOrg').value }) }))}>Link me to organization</Button><JsonOutput data={link} /></Panel></>; }
 
