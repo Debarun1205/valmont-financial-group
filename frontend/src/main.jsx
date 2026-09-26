@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import LandingPage from './LandingPage.jsx';
 import './styles.css';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const API = import.meta.env.VITE_API_URL || 'https://valmont-financial-group-vsxz.onrender.com';
 const DEMO_MODE = false;
@@ -984,13 +984,37 @@ function Merchant({ token, setToast }) {
 function Enterprise({ token, setToast }) { const api = useApi(token, setToast), [profile, setProfile] = useState(DEMO_MODE ? DEMO.enterpriseProfile.profile : null), [workforce, setWorkforce] = useState(DEMO_MODE ? DEMO.enterpriseWorkforce.workforce : null), [link, setLink] = useState(null); const load = async () => { const r = await Promise.allSettled([api('/api/enterprise/profile'), api('/api/enterprise/workforce')]); if (r[0].status === 'fulfilled') setProfile(normalize(r[0].value, ['profile'])); if (r[1].status === 'fulfilled') setWorkforce(normalize(r[1].value, ['workforce'])); }; useEffect(() => { if (!DEMO_MODE) load(); }, []); return <><PageHeader eyebrow="BUSINESS / ENTERPRISE" title="Workforce, seen through the same signal." description="Employer profile, employee self-link and a workforce rollup with score distribution and loan exposure." right={<Button variant="secondary" onClick={load}>Refresh workforce</Button>} /><div className="stats-row"><Stat label="Headcount" value={workforce?.headcount ?? '—'} sub="Linked employees" /><Stat label="Scored" value={workforce?.scoredCount ?? '—'} sub="Employees with signal" /><Stat label="Average trust" value={workforce?.avgTrustScore ?? '—'} sub="Same trust engine" /><Stat label="Outstanding" value={workforce?.loanPortfolio?.totalOutstanding != null ? money(workforce.loanPortfolio.totalOutstanding) : '—'} sub="Loan exposure" /></div><Panel title="Organization" kicker="EMPLOYER"><Field label="Organization name"><input id="org" defaultValue={profile?.organization_name || 'Acme Corp'} /></Field><div className="button-row"><Button onClick={async () => { await api('/api/enterprise/profile', { method: 'POST', body: JSON.stringify({ organizationName: document.getElementById('org').value }) }); await load(); }}>Save organization</Button></div></Panel><Panel title="Rating distribution" kicker="WORKFORCE"><div className="lens-grid dense">{Object.entries(workforce?.ratingDistribution || {}).map(([k, v]) => <div className="lens-card" key={k}><div><span className="eyebrow">{k}</span><h3>{v}</h3></div></div>)}</div></Panel><Panel title="Employee self-link" kicker="INDIVIDUAL"><Field label="Organization name"><input id="employeeOrg" defaultValue="Acme Corp" /></Field><Button onClick={async () => setLink(await api('/api/enterprise/employee-link', { method: 'POST', body: JSON.stringify({ organizationName: document.getElementById('employeeOrg').value }) }))}>Link me to organization</Button><JsonOutput data={link} /></Panel></>; }
 
 
+
+const Candlestick = (props) => {
+  const { x, y, width, height, payload } = props;
+  const { open, close, high, low } = payload;
+  if (high == null || low == null) return null;
+  const isUp = close >= open;
+  const color = isUp ? 'var(--teal)' : 'var(--risk)';
+  const valueRange = high - low || 0.001;
+  const pixelPerValue = height / valueRange;
+  const yOpen = y + (high - open) * pixelPerValue;
+  const yClose = y + (high - close) * pixelPerValue;
+  const bodyTop = Math.min(yOpen, yClose);
+  const bodyBottom = Math.max(yOpen, yClose);
+  const bodyHeight = Math.max(bodyBottom - bodyTop, 2);
+  return (
+    <g stroke={color} fill={color} strokeWidth="2">
+      <line x1={x + width / 2} y1={y} x2={x + width / 2} y2={y + height} />
+      <rect x={x} y={bodyTop} width={width} height={bodyHeight} />
+    </g>
+  );
+};
+
 function StockPredictor({ setToast }) {
   const [ticker, setTicker] = useState('AAPL');
   const [data, setData] = useState(null);
   const [isLive, setIsLive] = useState(false);
+  const [showVwap, setShowVwap] = useState(true);
+  const [showCandles, setShowCandles] = useState(true);
+  const [showLiquidity, setShowLiquidity] = useState(true);
   const wsRef = useRef(null);
   
-  // Feature 1: Simulated Analysis
   const analyzeSimulated = () => {
     setIsLive(false);
     if (wsRef.current) wsRef.current.close();
@@ -1002,12 +1026,21 @@ function StockPredictor({ setToast }) {
     
     for(let i=0; i<30; i++) {
       const vol = Math.floor(Math.random() * 10000) + 1000;
-      const price = currentPrice + (Math.random() - 0.5) * 5;
-      cumulativeVP += price * vol;
+      const open = currentPrice;
+      const close = currentPrice + (Math.random() - 0.5) * 5;
+      const high = Math.max(open, close) + Math.random() * 2;
+      const low = Math.min(open, close) - Math.random() * 2;
+      
+      cumulativeVP += close * vol;
       cumulativeV += vol;
       const runningVwap = cumulativeVP / cumulativeV;
-      history.push({ day: i+1, price: Number(price.toFixed(2)), vwap: Number(runningVwap.toFixed(2)), volume: vol });
-      currentPrice = price;
+      
+      history.push({ 
+        day: i+1, price: Number(close.toFixed(2)), vwap: Number(runningVwap.toFixed(2)), volume: vol,
+        open: Number(open.toFixed(2)), high: Number(high.toFixed(2)), low: Number(low.toFixed(2)), close: Number(close.toFixed(2)),
+        range: [Number(low.toFixed(2)), Number(high.toFixed(2))]
+      });
+      currentPrice = close;
     }
     
     const finalVwap = cumulativeVP / cumulativeV;
@@ -1022,7 +1055,6 @@ function StockPredictor({ setToast }) {
     setToast('Simulated mathematical analysis complete!');
   };
 
-  // Feature 2: Live Crypto Data via WebSocket
   const startLiveCrypto = () => {
     setIsLive(true);
     if (wsRef.current) wsRef.current.close();
@@ -1035,17 +1067,23 @@ function StockPredictor({ setToast }) {
     let cumulativeVP = 0;
     let cumulativeV = 0;
     let tickCount = 0;
+    let currentBucket = null;
 
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       const price = parseFloat(msg.p);
       const vol = parseFloat(msg.q);
       
+      if (!currentBucket) currentBucket = { open: price, high: price, low: price, close: price, vol: 0 };
+      currentBucket.high = Math.max(currentBucket.high, price);
+      currentBucket.low = Math.min(currentBucket.low, price);
+      currentBucket.close = price;
+      currentBucket.vol += vol;
+      
       cumulativeVP += price * vol;
       cumulativeV += vol;
       tickCount++;
       
-      // Update state every 5 trades for visual stability
       if (tickCount % 5 === 0) {
         const runningVwap = cumulativeVP / cumulativeV;
         const time = new Date(msg.E).toLocaleTimeString();
@@ -1054,8 +1092,14 @@ function StockPredictor({ setToast }) {
           day: time,
           price: Number(price.toFixed(2)),
           vwap: Number(runningVwap.toFixed(2)),
-          volume: vol
+          volume: currentBucket.vol,
+          open: Number(currentBucket.open.toFixed(2)),
+          high: Number(currentBucket.high.toFixed(2)),
+          low: Number(currentBucket.low.toFixed(2)),
+          close: Number(currentBucket.close.toFixed(2)),
+          range: [Number(currentBucket.low.toFixed(2)), Number(currentBucket.high.toFixed(2))]
         });
+        currentBucket = null;
         
         if (liveHistory.length > 30) liveHistory.shift();
         
@@ -1064,7 +1108,7 @@ function StockPredictor({ setToast }) {
           vwap: runningVwap,
           liquidityScore: cumulativeV,
           currentPrice: price,
-          history: [...liveHistory] // clone to trigger re-render
+          history: [...liveHistory]
         });
       }
     };
@@ -1080,12 +1124,12 @@ function StockPredictor({ setToast }) {
 
   return (
     <>
-      <PageHeader eyebrow="MARKETS / AI" title="Mathematical Stock Predictor" description="Advanced VWAP and liquidity models. Use the simulator or stream live real-time crypto trades." />
+      <PageHeader eyebrow="MARKETS / AI" title="Mathematical Stock Predictor" description="Advanced VWAP and liquidity models. Stream live trades or run simulations with visual overlays." />
       <Panel title="Analyze Asset" kicker="PREDICTOR">
         <div className="form-grid">
           <Field label="Ticker Symbol"><input id="ticker" value={ticker} onChange={e => setTicker(e.target.value)} disabled={isLive} /></Field>
         </div>
-        <div className="button-row">
+        <div className="button-row" style={{ marginTop: '16px' }}>
           <Button onClick={analyzeSimulated}>Run Simulation</Button>
           <Button variant="secondary" onClick={startLiveCrypto}>{isLive ? 'Streaming Live...' : 'Stream Live Crypto Data'}</Button>
         </div>
@@ -1101,15 +1145,36 @@ function StockPredictor({ setToast }) {
           </div>
           
           <Panel title="Price & VWAP Trend" kicker="GRAPHICAL REPRESENTATION" style={{ marginTop: '24px' }}>
-            <div style={{ height: '300px', width: '100%', marginTop: '16px', padding: '16px' }}>
+            <div style={{ display: 'flex', gap: '16px', padding: '0 16px', marginTop: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                <input type="checkbox" checked={showVwap} onChange={e => setShowVwap(e.target.checked)} /> Show VWAP
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                <input type="checkbox" checked={showCandles} onChange={e => setShowCandles(e.target.checked)} /> Candlestick Forms
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                <input type="checkbox" checked={showLiquidity} onChange={e => setShowLiquidity(e.target.checked)} /> Liquidity Sweep (Volume)
+              </label>
+            </div>
+            
+            <div style={{ height: '350px', width: '100%', marginTop: '16px', padding: '16px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.history}>
+                <ComposedChart data={data.history}>
                   <XAxis dataKey="day" stroke="var(--slate-body)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis domain={['auto', 'auto']} stroke="var(--slate-body)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => '\$' + val} />
+                  <YAxis yAxisId="left" domain={['auto', 'auto']} stroke="var(--slate-body)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => '\$' + val} />
+                  {showLiquidity && <YAxis yAxisId="right" orientation="right" stroke="var(--slate-body)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => val > 1000 ? (val/1000).toFixed(1)+'k' : val} />}
                   <Tooltip contentStyle={{ backgroundColor: 'var(--surface-container)', border: '1px solid var(--border-hairline)', borderRadius: '8px', color: 'var(--slate-headline)' }} />
-                  <Line type="monotone" dataKey="price" stroke="var(--teal)" strokeWidth={2} dot={false} name="Price" isAnimationActive={!isLive} />
-                  <Line type="monotone" dataKey="vwap" stroke="var(--risk)" strokeWidth={2} dot={false} name="VWAP" strokeDasharray="5 5" isAnimationActive={!isLive} />
-                </LineChart>
+                  
+                  {showLiquidity && <Bar yAxisId="right" dataKey="volume" fill="var(--slate-body)" opacity={0.2} name="Volume" isAnimationActive={!isLive} />}
+                  
+                  {showCandles ? (
+                    <Bar yAxisId="left" dataKey="range" shape={<Candlestick />} name="OHLC" isAnimationActive={!isLive} />
+                  ) : (
+                    <Line yAxisId="left" type="monotone" dataKey="price" stroke="var(--teal)" strokeWidth={2} dot={false} name="Price" isAnimationActive={!isLive} />
+                  )}
+                  
+                  {showVwap && <Line yAxisId="left" type="monotone" dataKey="vwap" stroke="var(--risk)" strokeWidth={2} dot={false} name="VWAP" strokeDasharray="5 5" isAnimationActive={!isLive} />}
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </Panel>
@@ -1167,7 +1232,15 @@ function Chatbot({ token }) {
         method: 'POST',
         body: JSON.stringify({ question: msg })
       });
-      setMessages(prev => [...prev, { text: res.qa?.answer || 'Sorry, I encountered an error.', sender: 'bot' }]);
+      let answer = res.qa?.answer || 'Sorry, I encountered an error.';
+      if (answer.includes('[MOCK]')) {
+        if (msg.toLowerCase().match(/\b(hey|hi|hello)\b/)) {
+          answer = 'Hello! I am your AI financial companion. I can help you understand budgeting, investing, and market terms. What would you like to learn today?';
+        } else {
+          answer = `That is a great question about "${msg}". In a full production environment, I would connect to my live knowledge base to give you a detailed explanation. For now, remember to always consult an advisor for financial decisions!`;
+        }
+      }
+      setMessages(prev => [...prev, { text: answer, sender: 'bot' }]);
     } catch (err) {
       setMessages(prev => [...prev, { text: 'Sorry, I am offline.', sender: 'bot' }]);
     }
