@@ -50,7 +50,7 @@ function buildEducationRoutes(pool, requireAuth) {
   });
 
   router.post('/qa', requireAuth, async (req, res) => {
-    const { question, language } = req.body;
+    const { question, language, withAudio } = req.body;
     const validation = validateQaRequest({ question });
     if (!validation.ok) return res.status(400).json({ error: validation.error });
 
@@ -128,14 +128,16 @@ function buildEducationRoutes(pool, requireAuth) {
       
       const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
       let postData = '';
-      postData += '--' + boundary + '\r\n';
-      postData += 'Content-Disposition: form-data; name="model"\r\n\r\n';
-      postData += 'whisper-large-v3\r\n';
-      postData += '--' + boundary + '\r\n';
-      postData += 'Content-Disposition: form-data; name="file"; filename="audio" + (mimeType.includes('mp4') ? '.m4a' : '.webm') + '"\r\n';
-      postData += 'Content-Type: ' + mimeType + '\r\n\r\n';
+      postData += '--' + boundary + '\\r\\n';
+      postData += 'Content-Disposition: form-data; name="model"\\r\\n\\r\\n';
+      postData += 'whisper-large-v3\\r\\n';
+      postData += '--' + boundary + '\\r\\n';
       
-      const endBoundary = '\r\n--' + boundary + '--\r\n';
+      const ext = mimeType.includes('mp4') ? '.m4a' : '.webm';
+      postData += 'Content-Disposition: form-data; name="file"; filename="audio' + ext + '"\\r\\n';
+      postData += 'Content-Type: ' + mimeType + '\\r\\n\\r\\n';
+      
+      const endBoundary = '\\r\\n--' + boundary + '--\\r\\n';
       
       const payload = Buffer.concat([
         Buffer.from(postData, 'utf8'),
