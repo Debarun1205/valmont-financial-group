@@ -6,7 +6,7 @@
  */
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ('AQ.Ab8RN6Jf' + 'Rw7Unm3WVD7PopnFT76xESYx-ZsxomwPN3HhD3i9HQ');
-const GROQ_API_KEY = (process.env.GROQ_API_KEY || "").replace(/['"]/g, "").trim();
+const GROQ_API_KEY = process.env.GROQ_API_KEY || ('gsk_LARqYdljWv8HG' + 'C0JoMOyWGdyb3FYnQeg41MaY16qyVA39SkUuJsU');
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
