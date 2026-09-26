@@ -937,7 +937,7 @@ function Merchant({ token, setToast }) {
         <Button onClick={saveProfile}>Save profile</Button>
         <Button variant="secondary" onClick={refreshHealth}>Refresh health</Button>
       </div>
-      <JsonOutput data={Object.keys(out).length > 0 ? out : profile || health || trend} />
+      
     </Panel>
     <Panel title="Revenue trend" kicker="TIMESCALE INBOUND"><TrendList items={trend} valueKey="revenue" /></Panel>
   </>; 
