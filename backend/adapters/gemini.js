@@ -64,17 +64,16 @@ async function callGeminiOnlyJSON(prompt) {
  * @returns {Promise<Object|null>}
  */
 async function callGeminiJSON(prompt) {
+  let lastError = null;
   const gemini = await callGeminiOnlyJSON(prompt);
-  if (gemini?.parsed) {
-    console.log('[ai] provider=gemini');
-    return gemini.parsed;
-  }
+  if (gemini?.parsed) return gemini.parsed;
+  if (gemini?.error) lastError = 'Gemini Error: ' + gemini.error;
+  
   const groq = await callGroqJSON(prompt);
-  if (groq?.parsed) {
-    console.log('[ai] provider=groq (fallback)');
-    return groq.parsed;
-  }
-  return null;
+  if (groq?.parsed) return groq.parsed;
+  if (groq?.error) lastError = lastError ? lastError + ' | Groq Error: ' + groq.error : 'Groq Error: ' + groq.error;
+  
+  return { _error: lastError || 'API Keys are missing from Render process.env' };
 }
 
 async function extractIncomeFromDocument(imageBase64, mimeType = 'image/jpeg') {
