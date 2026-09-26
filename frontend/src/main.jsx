@@ -272,8 +272,17 @@ function VoiceAssistant({ token }) {
       console.error('Speech error', e);
       setListening(false);
       setProcessing(false);
-      setTranscript('Mic error: ' + (e.error || 'Unknown. Check permissions.'));
-      setTimeout(() => setTranscript(''), 2000);
+      if (e.error === 'no-speech') {
+        setTranscript('Waiting for speech...');
+        setTimeout(() => setTranscript(''), 2000);
+        return;
+      }
+      if (e.error === 'not-allowed') {
+        setTranscript('Mic blocked! Click the Lock icon in URL bar to Allow.');
+      } else {
+        setTranscript('Mic error: ' + (e.error || 'Unknown.'));
+      }
+      setTimeout(() => setTranscript(''), 4000);
     };
     
     recognition.onend = () => {
