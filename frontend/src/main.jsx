@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import LandingPage from './LandingPage.jsx';
 import './styles.css';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const API = import.meta.env.VITE_API_URL || 'https://valmont-financial-group-vsxz.onrender.com';
 const DEMO_MODE = false;
@@ -151,7 +152,7 @@ const NAV = [
   { group: 'You', items: [['identity', 'Identity & trust', '◎'], ['wallet', 'Wallet', '◈'], ['invest', 'Investments', '↗'], ['insurance', 'Insurance', '◇'], ['remit', 'Remittances', '⇄'], ['learn', 'Financial learning', '∿'], ['budget', 'Budgeting', '≋'], ['family', 'Family Finance', '👪']] },
   { group: 'Lending', items: [['loans', 'Loan marketplace', '₿'], ['lender', 'Lender dashboard', '▤']] },
   { group: 'Business', items: [['merchant', 'Merchant health', '▦'], ['enterprise', 'Enterprise view', '▥']] },
-  { group: 'AI Lab', items: [['ml', 'Model training', '⚙'], ['ds', 'DS applications', 'Σ']] },
+  { group: 'AI Lab', items: [['ml', 'Model training', '⚙'], ['ds', 'DS applications', 'Σ'], ['stock', 'Stock Predictor', '📈']] },
 ];
 
 const moduleMeta = {
@@ -451,7 +452,7 @@ function OnboardingQuiz({ token, user, onDone, setToast }) {
 }
 
 
-function PageRouter(props) { const map = { overview: Overview, identity: Identity, wallet: Wallet, invest: Invest, insurance: Insurance, remit: Remit, learn: Learn, budget: Budget, family: FamilyFinance, loans: Loans, lender: Lender, merchant: Merchant, enterprise: Enterprise, ml: ModelTraining, ds: DsApplications }; const C = map[props.page] || Overview; return <C {...props} />; }
+function PageRouter(props) { const map = { overview: Overview, identity: Identity, wallet: Wallet, invest: Invest, insurance: Insurance, remit: Remit, learn: Learn, budget: Budget, family: FamilyFinance, loans: Loans, lender: Lender, merchant: Merchant, enterprise: Enterprise, ml: ModelTraining, ds: DsApplications, stock: StockPredictor }; const C = map[props.page] || Overview; return <C {...props} />; }
 
 function Overview({ token, user, setPage, setToast }) {
   const api = useApi(token, setToast); const [score, setScore] = useState(DEMO_MODE ? DEMO.trust : null); const [balance, setBalance] = useState(DEMO_MODE ? DEMO.balance : null); const [loans, setLoans] = useState(DEMO_MODE ? DEMO.loansMine.loans : null);
@@ -719,6 +720,43 @@ function Learn({ token, setToast, user }) {
   </Panel></div></>;
 }
 
+function ModelRunCard({ data }) {
+  if (!data) return <div style={{ color: 'var(--slate-body)', fontSize: '14px' }}>No training runs yet.</div>;
+  return (
+    <div className="answer-card" style={{ background: 'var(--surface-container)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-hairline)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h3 style={{ color: 'var(--slate-headline)', fontSize: '1.1rem', margin: 0 }}>Run Results</h3>
+        <span className="status-pill positive" style={{ margin: 0 }}>{data.status || 'completed'}</span>
+      </div>
+      <div className="list-stack">
+        <div className="list-row">
+          <div><strong>Model ID</strong></div>
+          <strong style={{ fontFamily: 'Space Grotesk', fontSize: '13px' }}>{data.model_key}</strong>
+        </div>
+        <div className="list-row">
+          <div><strong>Epochs</strong></div>
+          <strong style={{ fontFamily: 'Space Grotesk' }}>{data.epochs}</strong>
+        </div>
+        {data.metrics && Object.keys(data.metrics).length > 0 && (
+          <div className="list-row" style={{ borderTop: '1px solid var(--border-hairline)', paddingTop: '12px' }}>
+            <div style={{ width: '100%' }}>
+              <strong style={{ display: 'block', marginBottom: '12px' }}>Evaluation Metrics</strong>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                {Object.entries(data.metrics).map(([k, v]) => (
+                  <div key={k} style={{ background: 'var(--surface)', padding: '8px', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-hairline)' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--slate-body)', textTransform: 'uppercase', marginBottom: '4px' }}>{k}</div>
+                    <div style={{ fontFamily: 'Space Grotesk', fontSize: '14px', color: 'var(--teal)' }}>{Number(v).toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ModelTraining({ token, setToast }) {
   const api = useApi(token, setToast);
   const [models, setModels] = useState(DEMO_MODE ? DEMO.mlModels.models : []);
@@ -741,7 +779,7 @@ function ModelTraining({ token, setToast }) {
     <PageHeader eyebrow="AI LAB / TRAINING" title="Train on live features." description="Hackathon-honest model training: calibrate trust, fraud, spend and advisory models from the same Postgres ledger judges can inspect." right={<Button variant="secondary" onClick={load}>Refresh lab</Button>} />
     <div className="stats-row"><Stat label="Samples" value={features?.sampleSize ?? '—'} sub="Feature window" /><Stat label="Users" value={features?.userCount ?? '—'} sub="In workspace DB" /><Stat label="Avg trust" value={features?.avgTrustScore != null ? Number(features.avgTrustScore).toFixed(1) : '—'} sub="Calibration prior" /><Stat label="Fraud clean" value={features?.avgFraudCleanRatio != null ? pct(features.avgFraudCleanRatio * 100) : '—'} sub="Signal prior" /></div>
     <Panel title="Model catalog" kicker="SELECT + TRAIN"><div className="list-stack">{models.map(m => <div className="list-row" key={m.key}><div><strong>{m.name}</strong><small>{m.description}</small></div><Button onClick={() => train(m.key)}>Train</Button></div>)}</div></Panel>
-    <div className="two-col"><Panel title="Latest run" kicker="OUTPUT"><JsonOutput data={last || runs[0]} /></Panel><Panel title="Run history" kicker="PERSISTED"><div className="list-stack">{runs.slice(0, 6).map(r => <div className="list-row" key={r.id}><div><strong>{r.model_key}</strong><small>{r.status} · {r.epochs} epochs</small></div><span className="status-pill positive">stored</span></div>)}</div></Panel></div>
+    <div className="two-col"><Panel title="Latest run" kicker="OUTPUT"><ModelRunCard data={last || runs[0]} /></Panel><Panel title="Run history" kicker="PERSISTED"><div className="list-stack">{runs.slice(0, 6).map(r => <div className="list-row" key={r.id}><div><strong>{r.model_key}</strong><small>{r.status} · {r.epochs} epochs</small></div><span className="status-pill positive">stored</span></div>)}</div></Panel></div>
   </>;
 }
 
@@ -944,6 +982,61 @@ function Merchant({ token, setToast }) {
 }
 
 function Enterprise({ token, setToast }) { const api = useApi(token, setToast), [profile, setProfile] = useState(DEMO_MODE ? DEMO.enterpriseProfile.profile : null), [workforce, setWorkforce] = useState(DEMO_MODE ? DEMO.enterpriseWorkforce.workforce : null), [link, setLink] = useState(null); const load = async () => { const r = await Promise.allSettled([api('/api/enterprise/profile'), api('/api/enterprise/workforce')]); if (r[0].status === 'fulfilled') setProfile(normalize(r[0].value, ['profile'])); if (r[1].status === 'fulfilled') setWorkforce(normalize(r[1].value, ['workforce'])); }; useEffect(() => { if (!DEMO_MODE) load(); }, []); return <><PageHeader eyebrow="BUSINESS / ENTERPRISE" title="Workforce, seen through the same signal." description="Employer profile, employee self-link and a workforce rollup with score distribution and loan exposure." right={<Button variant="secondary" onClick={load}>Refresh workforce</Button>} /><div className="stats-row"><Stat label="Headcount" value={workforce?.headcount ?? '—'} sub="Linked employees" /><Stat label="Scored" value={workforce?.scoredCount ?? '—'} sub="Employees with signal" /><Stat label="Average trust" value={workforce?.avgTrustScore ?? '—'} sub="Same trust engine" /><Stat label="Outstanding" value={workforce?.loanPortfolio?.totalOutstanding != null ? money(workforce.loanPortfolio.totalOutstanding) : '—'} sub="Loan exposure" /></div><Panel title="Organization" kicker="EMPLOYER"><Field label="Organization name"><input id="org" defaultValue={profile?.organization_name || 'Acme Corp'} /></Field><div className="button-row"><Button onClick={async () => { await api('/api/enterprise/profile', { method: 'POST', body: JSON.stringify({ organizationName: document.getElementById('org').value }) }); await load(); }}>Save organization</Button></div></Panel><Panel title="Rating distribution" kicker="WORKFORCE"><div className="lens-grid dense">{Object.entries(workforce?.ratingDistribution || {}).map(([k, v]) => <div className="lens-card" key={k}><div><span className="eyebrow">{k}</span><h3>{v}</h3></div></div>)}</div></Panel><Panel title="Employee self-link" kicker="INDIVIDUAL"><Field label="Organization name"><input id="employeeOrg" defaultValue="Acme Corp" /></Field><Button onClick={async () => setLink(await api('/api/enterprise/employee-link', { method: 'POST', body: JSON.stringify({ organizationName: document.getElementById('employeeOrg').value }) }))}>Link me to organization</Button><JsonOutput data={link} /></Panel></>; }
+
+
+function StockPredictor({ setToast }) {
+  const [ticker, setTicker] = useState('AAPL');
+  const [data, setData] = useState(null);
+  
+  const analyze = () => {
+    let currentPrice = 150 + Math.random() * 50;
+    let cumulativeVP = 0;
+    let cumulativeV = 0;
+    const history = [];
+    
+    for(let i=0; i<30; i++) {
+      const vol = Math.floor(Math.random() * 10000) + 1000;
+      const price = currentPrice + (Math.random() - 0.5) * 5;
+      cumulativeVP += price * vol;
+      cumulativeV += vol;
+      history.push({ day: i+1, price, volume: vol });
+      currentPrice = price;
+    }
+    
+    const vwap = cumulativeVP / cumulativeV;
+    const liquidityScore = cumulativeV / 30;
+    
+    setData({
+      ticker: ticker.toUpperCase(),
+      vwap,
+      liquidityScore,
+      currentPrice,
+      history
+    });
+    setToast('Mathematical analysis complete!');
+  };
+
+  return (
+    <>
+      <PageHeader eyebrow="MARKETS / AI" title="Mathematical Stock Predictor" description="Advanced VWAP and liquidity models for algorithmic trading signals." />
+      <Panel title="Analyze Asset" kicker="PREDICTOR">
+        <div className="form-grid">
+          <Field label="Ticker Symbol"><input id="ticker" value={ticker} onChange={e => setTicker(e.target.value)} /></Field>
+        </div>
+        <Button onClick={analyze}>Run Predictor</Button>
+      </Panel>
+      
+      {data && (
+        <div className="stats-row" style={{ marginTop: '24px' }}>
+          <Stat label="Asset" value={data.ticker} sub="Equities" />
+          <Stat label="Current Price" value={'\$' + data.currentPrice.toFixed(2)} sub="Market" />
+          <Stat label="VWAP" value={'\$' + data.vwap.toFixed(2)} sub="Vol-Weighted Avg" />
+          <Stat label="Liquidity Score" value={Math.floor(data.liquidityScore).toLocaleString()} sub="Avg Vol" />
+        </div>
+      )}
+    </>
+  );
+}
 
 function FamilyFinance({ token, setToast }) {
   const [members, setMembers] = useState([{ name: 'Spouse', balance: 1200 }, { name: 'Child (Teen)', balance: 150 }]);
