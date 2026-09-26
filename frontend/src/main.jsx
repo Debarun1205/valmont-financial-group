@@ -594,9 +594,9 @@ function Budget({ token, setToast }) {
   const target = goal?.goal?.target_savings_pct ?? goal?.defaultTargetSavingsPct ?? 20; 
   
   const saveGoal = async () => {
-    const res = await api('/api/budget/goal', { method: 'POST', body: JSON.stringify({ targetSavingsPct: Number(document.getElementById('target').value) }) });
-    setGoal(res);
-    setOut({ saveGoal: res });
+    await api('/api/budget/goal', { method: 'POST', body: JSON.stringify({ targetSavingsPct: Number(document.getElementById('target').value) }) });
+    setToast('Goal saved successfully!');
+    setOut(prev => { const next = {...prev}; delete next.saveGoal; return next; });
     await load();
   };
 
