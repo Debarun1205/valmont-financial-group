@@ -5,8 +5,8 @@
  * Income OCR stays Gemini-first (vision); falls back to mock if unavailable.
  */
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").replace(/['"]/g, "").trim();
+const GROQ_API_KEY = (process.env.GROQ_API_KEY || "").replace(/['"]/g, "").trim();
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -41,10 +41,7 @@ async function callGroqJSON(prompt) {
     const data = await res.json();
     const text = data.choices?.[0]?.message?.content || '{}';
     return { parsed: JSON.parse(stripJsonFence(text)), provider: 'groq' };
-  } catch (err) {
-    console.error('[ai] Groq fallback failed:', err.message);
-    return null;
-  }
+  } catch (err) { console.error('[ai] Groq fallback failed:', err.message); return { error: err.message }; }
 }
 
 async function callGeminiOnlyJSON(prompt) {
@@ -59,10 +56,7 @@ async function callGeminiOnlyJSON(prompt) {
     const data = await res.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
     return { parsed: JSON.parse(stripJsonFence(text)), provider: 'gemini' };
-  } catch (err) {
-    console.error('[ai] Gemini call failed:', err.message);
-    return null;
-  }
+  } catch (err) { console.error('[ai] Gemini call failed:', err.message); return { error: err.message }; }
 }
 
 /**

@@ -1233,13 +1233,6 @@ function Chatbot({ token }) {
         body: JSON.stringify({ question: msg })
       });
       let answer = res.qa?.answer || 'Sorry, I encountered an error.';
-      if (answer.includes('[MOCK]')) {
-        if (msg.toLowerCase().match(/\b(hey|hi|hello)\b/)) {
-          answer = 'Hello! I am your AI financial companion. I can help you understand budgeting, investing, and market terms. What would you like to learn today?';
-        } else {
-          answer = `That is a great question about "${msg}". In a full production environment, I would connect to my live knowledge base to give you a detailed explanation. For now, remember to always consult an advisor for financial decisions!`;
-        }
-      }
       setMessages(prev => [...prev, { text: answer, sender: 'bot' }]);
     } catch (err) {
       setMessages(prev => [...prev, { text: 'Sorry, I am offline.', sender: 'bot' }]);
