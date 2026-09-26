@@ -7,7 +7,7 @@
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ('AQ.Ab8RN6Jf' + 'Rw7Unm3WVD7PopnFT76xESYx-ZsxomwPN3HhD3i9HQ');
 const GROQ_API_KEY = (process.env.GROQ_API_KEY || "").replace(/['"]/g, "").trim();
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-pro';
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
