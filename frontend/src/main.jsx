@@ -291,7 +291,7 @@ function VoiceAssistant({ token }) {
 
       mediaRecorder.start();
     } catch (e) {
-      setTranscript('Mic blocked! Click the Lock icon in URL bar to Allow.');
+      if (e.name === 'NotAllowedError') setTranscript('Mic blocked! Click the Lock icon to Allow.'); else if (e.name === 'NotFoundError') setTranscript('No microphone found on your device!'); else setTranscript('Mic error: ' + e.message);
       setTimeout(() => setTranscript(''), 4000);
     }
   };
