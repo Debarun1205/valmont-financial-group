@@ -509,12 +509,69 @@ function Identity({ token, setToast }) {
   return <><PageHeader eyebrow="YOU / IDENTITY" title="Identity & trust" description="Build a portable financial signal from verified income, transaction behavior and an on-chain attestation." right={<Button variant="secondary" onClick={load}>Refresh identity</Button>} /><div className="two-col"><Panel title="Evidence" kicker="INCOME VERIFICATION"><Field label="Income document"><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0])} /></Field><Button onClick={upload}>Verify income</Button></Panel><Panel title="Trust score" kicker="ATTESTATION"><div className="metric-callout"><strong>{score?.score ?? '—'}</strong><span>current score</span></div><Button onClick={compute}>Compute + attest on Solana</Button><TrustScoreCard data={data.score} /></Panel></div><Panel title="Student starter identity" kicker="ALTERNATE ENTRY PATH"><div className="form-grid"><Field label="School"><input id="school" defaultValue={data.profile?.school_name || 'State University'} /></Field><Field label="Graduation year"><input id="grad" type="number" defaultValue={data.profile?.expected_grad_year || 2028} /></Field><Field label="Monthly allowance"><input id="allowance" type="number" defaultValue={data.profile?.monthly_allowance || 300} /></Field></div><Button onClick={async () => { await api('/api/student/profile', { method: 'POST', body: JSON.stringify({ schoolName: document.getElementById('school').value, expectedGradYear: Number(document.getElementById('grad').value), monthlyAllowance: Number(document.getElementById('allowance').value) }) }); await student(); }}>Save profile + compute</Button><TrustScoreCard data={data.student} /></Panel></>;
 }
 
+function WalletActionCard({ data }) {
+  if (!data) return null;
+  const w = data.wallet || data.account;
+  
+  if (w) {
+    return (
+      <div className="answer-card" style={{ marginTop: '16px', background: 'var(--surface-container)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-hairline)' }}>
+        <h3 style={{ marginBottom: '12px', color: 'var(--slate-headline)', fontSize: '1.1rem' }}>Wallet Details</h3>
+        <div className="list-stack">
+          {w.solana_public_key && (
+            <div className="list-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+              <div><strong>Solana Public Key</strong></div>
+              <small style={{ color: 'var(--teal)', wordBreak: 'break-all', fontFamily: 'Space Grotesk', background: '#0a1017', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-hairline)' }}>{w.solana_public_key}</small>
+            </div>
+          )}
+          <div className="list-row">
+            <div><strong>Savings Vault</strong></div>
+            <strong>{w.savings_vault_balance != null ? '$' + Number(w.savings_vault_balance).toFixed(2) : '$0.00'}</strong>
+          </div>
+          <div className="list-row">
+            <div><strong>Created At</strong></div>
+            <small style={{ color: 'var(--slate-body)' }}>{new Date(w.created_at || Date.now()).toLocaleString()}</small>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (data.success || data.transactionId || data.newVaultBalance !== undefined || data.message) {
+    return (
+       <div className="answer-card" style={{ marginTop: '16px', background: 'var(--surface-container)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-hairline)' }}>
+        <h3 style={{ marginBottom: '12px', color: 'var(--teal)', fontSize: '1.1rem' }}>Success</h3>
+        <div className="list-stack">
+          {data.transactionId && (
+            <div className="list-row">
+              <div><strong>Transaction ID</strong></div>
+              <small style={{ fontFamily: 'Space Grotesk' }}>{data.transactionId}</small>
+            </div>
+          )}
+          {data.newVaultBalance != null && (
+            <div className="list-row">
+              <div><strong>New Vault Balance</strong></div>
+              <strong>{'$' + Number(data.newVaultBalance).toFixed(2)}</strong>
+            </div>
+          )}
+          {data.message && (
+            <div className="list-row">
+              <small>{data.message}</small>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
 function Wallet({ token, setToast }) {
   const api = useApi(token, setToast), [balance, setBalance] = useState(DEMO_MODE ? DEMO.balance : null), [history, setHistory] = useState(DEMO_MODE ? DEMO.walletHistory.transactions : []), [crypto, setCrypto] = useState(DEMO_MODE ? DEMO.cryptoBalance : null), [gold, setGold] = useState(DEMO_MODE ? DEMO.goldBalance : null), [out, setOut] = useState({});
   const load = async () => { const rs = await Promise.allSettled([api('/api/wallet/balance'), api('/api/wallet/history'), api('/api/wallet/crypto/balance'), api('/api/wallet/gold/balance')]); if (rs[0].status === 'fulfilled') setBalance(rs[0].value); if (rs[1].status === 'fulfilled') setHistory(normalize(rs[1].value, ['transactions']) || []); if (rs[2].status === 'fulfilled') setCrypto(rs[2].value); if (rs[3].status === 'fulfilled') setGold(rs[3].value); };
   useEffect(() => { load(); }, []);
   const run = async (key, path, options) => { const r = await api(path, options); setOut(o => ({ ...o, [key]: r })); await load(); };
-  return <><PageHeader eyebrow="YOU / WALLET" title="Your wallet" description="One spendable ledger, plus crypto and digital gold as separate asset balances." right={<Button variant="secondary" onClick={async () => { await run('create', '/api/wallet/create', { method: 'POST' }); }}>Create / refresh wallet</Button>} /><div className="stats-row"><Stat label="USD balance" value={money(balance?.balance)} sub="Spendable" /><Stat label="Savings vault" value={money(balance?.savingsVaultBalance)} sub="Protected balance" /><Stat label="SOL" value={Number(crypto?.cryptoBalance || 0).toFixed(3)} sub={money(crypto?.estimatedUsdValue)} /><Stat label="Gold" value={`${Number(gold?.goldGrams || 0).toFixed(2)} g`} sub={money(gold?.estimatedUsdValue)} /></div><div className="two-col"><Panel title="USD wallet" kicker="PRIMARY LEDGER"><div className="form-grid"><Field label="Recipient email"><input id="recipient" defaultValue="other-user@example.com" /></Field><Field label="Amount"><input id="sendamt" type="number" defaultValue="10" /></Field></div><Button onClick={() => run('transfer', '/api/wallet/transfer', { method: 'POST', body: JSON.stringify({ recipientEmail: document.getElementById('recipient').value, amount: Number(document.getElementById('sendamt').value) }) })}>Send money</Button><div className="form-grid"><Field label="Vault deposit"><input id="vault" type="number" defaultValue="20" /></Field></div><Button variant="secondary" onClick={() => run('vault', '/api/wallet/vault/deposit', { method: 'POST', body: JSON.stringify({ amount: Number(document.getElementById('vault').value) }) })}>Move to vault</Button><JsonOutput data={out.transfer || out.vault || out.create} /></Panel><AssetPanel title="Solana" asset="SOL" run={run} crypto={crypto} /><AssetPanel title="Digital gold" asset="XAU_GRAM" run={run} gold={gold} /></div><Panel title="Recent ledger" kicker="TIMESCALE-BACKED HISTORY"><div className="ledger-table">{history.slice(0, 6).map((tx, i) => <div className="ledger-row" key={tx.id || `${tx.createdAt}-${i}`}><span>{tx.type || tx.channel || 'transaction'}</span><span>{tx.createdAt ? new Date(tx.createdAt).toLocaleString() : '—'}</span><strong>{money(tx.amount)}</strong></div>)}</div></Panel></>;
+  return <><PageHeader eyebrow="YOU / WALLET" title="Your wallet" description="One spendable ledger, plus crypto and digital gold as separate asset balances." right={<Button variant="secondary" onClick={async () => { await run('create', '/api/wallet/create', { method: 'POST' }); }}>Create / refresh wallet</Button>} /><div className="stats-row"><Stat label="USD balance" value={money(balance?.balance)} sub="Spendable" /><Stat label="Savings vault" value={money(balance?.savingsVaultBalance)} sub="Protected balance" /><Stat label="SOL" value={Number(crypto?.cryptoBalance || 0).toFixed(3)} sub={money(crypto?.estimatedUsdValue)} /><Stat label="Gold" value={`${Number(gold?.goldGrams || 0).toFixed(2)} g`} sub={money(gold?.estimatedUsdValue)} /></div><div className="two-col"><Panel title="USD wallet" kicker="PRIMARY LEDGER"><div className="form-grid"><Field label="Recipient email"><input id="recipient" defaultValue="other-user@example.com" /></Field><Field label="Amount"><input id="sendamt" type="number" defaultValue="10" /></Field></div><Button onClick={() => run('transfer', '/api/wallet/transfer', { method: 'POST', body: JSON.stringify({ recipientEmail: document.getElementById('recipient').value, amount: Number(document.getElementById('sendamt').value) }) })}>Send money</Button><div className="form-grid"><Field label="Vault deposit"><input id="vault" type="number" defaultValue="20" /></Field></div><Button variant="secondary" onClick={() => run('vault', '/api/wallet/vault/deposit', { method: 'POST', body: JSON.stringify({ amount: Number(document.getElementById('vault').value) }) })}>Move to vault</Button><WalletActionCard data={out.transfer || out.vault || out.create} /></Panel><AssetPanel title="Solana" asset="SOL" run={run} crypto={crypto} /><AssetPanel title="Digital gold" asset="XAU_GRAM" run={run} gold={gold} /></div><Panel title="Recent ledger" kicker="TIMESCALE-BACKED HISTORY"><div className="ledger-table">{history.slice(0, 6).map((tx, i) => <div className="ledger-row" key={tx.id || `${tx.createdAt}-${i}`}><span>{tx.type || tx.channel || 'transaction'}</span><span>{tx.createdAt ? new Date(tx.createdAt).toLocaleString() : '—'}</span><strong>{money(tx.amount)}</strong></div>)}</div></Panel></>;
 }
 function AssetPanel({ title, asset, run, crypto, gold }) { const isGold = Boolean(gold); const prefix = isGold ? 'gold' : 'crypto'; return <Panel title={title} kicker={`${asset} / ASSET`}><div className="asset-mark">{isGold ? 'Au' : '◎'}</div><div className="split-row"><span>Balance</span><span>{isGold ? `${Number(gold?.goldGrams || 0).toFixed(3)} g` : `${Number(crypto?.cryptoBalance || 0).toFixed(3)} SOL`}</span></div><div className="button-row"><Button onClick={() => run(`${prefix}buy`, `/api/wallet/${prefix}/buy`, { method: 'POST', body: JSON.stringify({ usdAmount: 50 }) })}>Buy {isGold ? 'gold' : 'SOL'}</Button><Button variant="secondary" onClick={() => run(`${prefix}sell`, `/api/wallet/${prefix}/sell`, { method: 'POST', body: JSON.stringify(isGold ? { goldGrams: 0.1 } : { cryptoAmount: 0.1 }) })}>Sell</Button><Button variant="secondary" onClick={() => run(`${prefix}quote`, `/api/wallet/${prefix}/quote`, { method: 'POST', body: JSON.stringify(isGold ? { side: 'buy', usdAmount: 50 } : { side: 'buy', usdAmount: 50 }) })}>Quote</Button></div></Panel>; }
 
