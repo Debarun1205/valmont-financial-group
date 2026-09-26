@@ -220,16 +220,15 @@ function mockTutorial({ topic, persona, language }) {
 
 async function answerFinanceQuestion({ question, language = 'English', tierContext }) {
   const prompt = `You are a financial-literacy assistant inside a hackathon
-demo app for underserved users. Answer this question in ${language}, in 2-4
-plain-language sentences, no jargon, warmly and inclusively, and add one short caveat that this is
-educational, not financial/legal/tax advice.
+demo app for underserved users. CRITICAL INSTRUCTION: You must auto-detect the regional language or dialect used in the user's question, and reply back in that EXACT SAME language (e.g., if they ask in Hindi, Bengali, Swahili, or Spanish, you MUST reply in that language). If unsure, default to ${language}. Keep it to 2-4 plain-language sentences, no jargon, warmly and inclusively. Add one short caveat that this is educational, not financial advice.
 Question: "${question}"
 ${tierPromptSuffix(tierContext)}
 Respond ONLY as JSON, no markdown fences:
 {"answer": "<2-4 sentence answer>"}`;
 
   const parsed = await callGeminiJSON(prompt);
-  if (parsed && parsed._error) return { answer: '[API ERROR] ' + parsed._error, mocked: true }; if (!parsed) return mockAnswer({ question, language });
+  if (parsed && parsed._error) return { answer: '[API ERROR] ' + parsed._error, mocked: true };
+  if (!parsed) return mockAnswer({ question, language });
   return { answer: parsed.answer || '', mocked: false };
 }
 
