@@ -505,6 +505,8 @@ function Remit({ token, setToast }) { const api = useApi(token, setToast), [corr
 
 function Learn({ token, setToast, user }) {
   const api = useApi(token, setToast), [data, setData] = useState({}), [history, setHistory] = useState({ tutorial: [], qa: [], plan: [] });
+  const [busyQA, setBusyQA] = useState(false);
+  const [qaError, setQaError] = useState('');
   const load = async () => {
     const r = await Promise.allSettled([api('/api/education/tutorial/history'), api('/api/education/qa/history'), api('/api/education/learning-plan/history')]);
     if (r[0].status === 'fulfilled') setHistory(h => ({ ...h, tutorial: r[0].value.history || [] }));
@@ -518,7 +520,85 @@ function Learn({ token, setToast, user }) {
     : user?.customerTier === 'banks' ? 'bank risk analyst'
     : user?.customerTier === 'organizations' ? 'enterprise people-ops lead'
     : 'salaried professional';
-  return <><PageHeader eyebrow="YOU / LEARNING" title="Learn finance at your pace." description={`Tutorials, Q&A and a short learning plan — personalized for ${user?.customerTier ? user.customerTier.replace(/_/g, ' ') : 'your path'}, with optional ElevenLabs narration.`} /><div className="two-col"><Panel title="Tutorial" kicker="AI · GEMINI → GROQ"><Field label="Topic"><input id="topic" defaultValue="how compound interest works" /></Field><div className="form-grid"><Field label="Persona"><select id="persona" defaultValue={tierPersona}><option>gig worker</option><option>student</option><option>salaried professional</option><option>curious technologist</option><option>merchant operator</option><option>bank risk analyst</option><option>enterprise people-ops lead</option></select></Field><Field label="Language"><input id="language" defaultValue="English" /></Field></div><label className="check"><input id="audio" type="checkbox" /> Narrate with ElevenLabs</label><Button onClick={async () => { const __r = await api('/api/education/tutorial', { method: 'POST', body: JSON.stringify({ topic: document.getElementById('topic').value, persona: document.getElementById('persona').value, language: document.getElementById('language').value, withAudio: document.getElementById('audio').checked }) }); setData(d => ({ ...d, tutorial: __r })); }}>Generate tutorial</Button></Panel><Panel title="Ask a question" kicker="LIVE GUIDANCE"><Field label="Question"><textarea id="question" defaultValue="What is an emergency fund?" /></Field><Button onClick={async () => { const __r = await api('/api/education/qa', { method: 'POST', body: JSON.stringify({ question: document.getElementById('question').value }) }); setData(d => ({ ...d, qa: __r })); }}>Ask</Button></Panel></div><Panel title="Your learning plan" kicker="TIER-PACED"><div className="form-grid"><Field label="Goal"><input id="learnGoal" defaultValue="build a 3-month emergency fund" /></Field><Field label="Weeks"><input id="learnWeeks" type="number" defaultValue="4" /></Field></div><Button onClick={async () => { const __r = await api('/api/education/learning-plan', { method: 'POST', body: JSON.stringify({ persona: document.getElementById('persona')?.value || tierPersona, goal: document.getElementById('learnGoal').value, horizonWeeks: Number(document.getElementById('learnWeeks').value) }) }); setData(d => ({ ...d, plan: __r })); }}>Build plan</Button><JsonOutput data={data.plan || data.qa || data.tutorial} /></Panel><div className="two-col"><Panel title="Tutorial history" kicker="SAVED OUTPUTS"><JsonOutput data={history.tutorial.slice(0, 3)} /></Panel><Panel title="Q&A + plans" kicker="SAVED OUTPUTS"><JsonOutput data={{ qa: history.qa.slice(0, 2), plans: history.plan.slice(0, 2) }} /></Panel></div></>;
+  return <><PageHeader eyebrow="YOU / LEARNING" title="Learn finance at your pace." description={`Tutorials, Q&A and a short learning plan — personalized for ${user?.customerTier ? user.customerTier.replace(/_/g, ' ') : 'your path'}, with optional ElevenLabs narration.`} /><div className="two-col"><Panel title="Tutorial" kicker="AI · GEMINI → GROQ"><Field label="Topic"><input id="topic" defaultValue="how compound interest works" /></Field><div className="form-grid"><Field label="Persona"><select id="persona" defaultValue={tierPersona}><option>gig worker</option><option>student</option><option>salaried professional</option><option>curious technologist</option><option>merchant operator</option><option>bank risk analyst</option><option>enterprise people-ops lead</option></select></Field><Field label="Language"><input id="language" defaultValue="English" /></Field></div><label className="check"><input id="audio" type="checkbox" /> Narrate with ElevenLabs</label><Button onClick={async () => { const __r = await api('/api/education/tutorial', { method: 'POST', body: JSON.stringify({ topic: document.getElementById('topic').value, persona: document.getElementById('persona').value, language: document.getElementById('language').value, withAudio: document.getElementById('audio').checked }) }); setData(d => ({ ...d, tutorial: __r })); }}>Generate tutorial</Button>
+  {data.tutorial?.tutorial?.body && (
+    <div className="answer-card" style={{ marginTop: '16px', background: 'var(--surface-container)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-hairline)' }}>
+      <h3 style={{ marginBottom: '16px', color: 'var(--slate-headline)', fontSize: '1.2rem' }}>{data.tutorial.tutorial.title}</h3>
+      <div className="answer-content" style={{ color: 'var(--slate-body)', lineHeight: '1.6', fontSize: '15px' }}>
+        {String(data.tutorial.tutorial.body).split('\n').map((para, i) => <p key={i} style={{ marginBottom: para.trim() ? '12px' : '0' }}>{para.trim() || <br />}</p>)}
+      </div>
+    </div>
+  )}</Panel><Panel title="Ask a question" kicker="LIVE GUIDANCE"><Field label="Question"><textarea id="question" defaultValue="What is an emergency fund?" /></Field><Button disabled={busyQA} onClick={async () => { 
+    setBusyQA(true);
+    setQaError('');
+    setData(d => ({ ...d, qa: null }));
+    try {
+      const __r = await api('/api/education/qa', { method: 'POST', body: JSON.stringify({ question: document.getElementById('question').value }) }); 
+      setData(d => ({ ...d, qa: __r })); 
+    } catch(err) {
+      setQaError('Unable to generate an answer right now. Please try again.');
+    } finally {
+      setBusyQA(false);
+    }
+  }}>Ask</Button>
+  {busyQA && <div style={{ marginTop: '16px', color: 'var(--slate-body)' }}>Thinking...</div>}
+  {qaError && <div style={{ marginTop: '16px', color: 'var(--brand-crimson)' }}>{qaError}</div>}
+  {data.qa?.qa?.answer && (
+    <div className="answer-card" style={{ marginTop: '16px', background: 'var(--surface-container)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-hairline)' }}>
+      <h3 style={{ marginBottom: '16px', color: 'var(--slate-headline)', fontSize: '1.2rem' }}>Answer</h3>
+      <div className="answer-content" style={{ color: 'var(--slate-body)', lineHeight: '1.6', fontSize: '15px' }}>
+        {Array.isArray(data.qa.qa.answer) ? 
+          data.qa.qa.answer.map((item, i) => <p key={i} style={{ marginBottom: '12px' }}>• {item}</p>) : 
+          String(data.qa.qa.answer).split('\n').map((para, i) => <p key={i} style={{ marginBottom: para.trim() ? '12px' : '0' }}>{para.trim() || <br />}</p>)
+        }
+      </div>
+    </div>
+  )}</Panel></div><Panel title="Your learning plan" kicker="TIER-PACED"><div className="form-grid"><Field label="Goal"><input id="learnGoal" defaultValue="build a 3-month emergency fund" /></Field><Field label="Weeks"><input id="learnWeeks" type="number" defaultValue="4" /></Field></div><Button onClick={async () => { const __r = await api('/api/education/learning-plan', { method: 'POST', body: JSON.stringify({ persona: document.getElementById('persona')?.value || tierPersona, goal: document.getElementById('learnGoal').value, horizonWeeks: Number(document.getElementById('learnWeeks').value) }) }); setData(d => ({ ...d, plan: __r })); }}>Build plan</Button>
+  {data.plan?.plan?.weeks && (
+    <div className="answer-card" style={{ marginTop: '16px', background: 'var(--surface-container)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-hairline)' }}>
+      <h3 style={{ marginBottom: '16px', color: 'var(--slate-headline)', fontSize: '1.2rem' }}>Learning Plan</h3>
+      <div className="list-stack">
+        {data.plan.plan.weeks.map((w, i) => (
+          <div className="list-row" key={i}>
+            <div>
+              <strong>Week {w.week}</strong>
+              <small style={{ color: 'var(--slate-body)' }}>{w.topic}</small>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}</Panel><div className="two-col"><Panel title="Tutorial history" kicker="SAVED OUTPUTS">
+    <div className="list-stack">
+      {history.tutorial.slice(0, 3).map(t => (
+        <div className="list-row" key={t.id}>
+          <div>
+            <strong>{t.title}</strong>
+            <small>{t.topic}</small>
+          </div>
+        </div>
+      ))}
+    </div>
+  </Panel><Panel title="Q&A + plans" kicker="SAVED OUTPUTS">
+    <div className="list-stack">
+      {history.qa.slice(0, 2).map(q => (
+        <div className="list-row" key={q.id}>
+          <div>
+            <strong>Q: {q.question}</strong>
+            <small style={{ color: 'var(--slate-body)' }}>{String(q.answer).substring(0, 80)}...</small>
+          </div>
+        </div>
+      ))}
+      {history.plan.slice(0, 2).map(p => (
+        <div className="list-row" key={p.id}>
+          <div>
+            <strong>Plan: {p.goal}</strong>
+            <small style={{ color: 'var(--slate-body)' }}>{p.horizon_weeks} weeks</small>
+          </div>
+        </div>
+      ))}
+    </div>
+  </Panel></div></>;
 }
 
 function ModelTraining({ token, setToast }) {
